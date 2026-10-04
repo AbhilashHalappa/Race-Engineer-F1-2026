@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+logs/
+.env
+
+# Local neural TTS voice models (download separately; large binary files)
+voices/*.onnx
+voices/*.onnx.json
+
+# Local project archives
+*.zip
+logs/ptt/
+
+# Local telemetry recordings and generated analysis
+recordings/
+analysis/

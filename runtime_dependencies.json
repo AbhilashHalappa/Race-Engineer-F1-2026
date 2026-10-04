@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "release": "Stable V2 RC3 — Repository & Documentation Cleanup",
+  "policy": "External runtime dependencies and AI/voice models are downloaded only when missing and only after user confirmation. They are not embedded in RaceEngineer.exe.",
+  "python": {
+    "required_major_minor": "3.13",
+    "download_url": "https://www.python.org/downloads/windows/",
+    "requirements": "requirements.txt"
+  },
+  "python_imports": [
+    "PySide6",
+    "piper",
+    "sounddevice",
+    "pygame",
+    "hid",
+    "serial",
+    "qrcode",
+    "faster_whisper"
+  ],
+  "piper_voice": {
+    "model_path": "voices/en_GB-alan-medium.onnx",
+    "config_path": "voices/en_GB-alan-medium.onnx.json",
+    "model_url": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alan/medium/en_GB-alan-medium.onnx",
+    "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json",
+    "model_sha256": "0a309668932205e762801f1efc2736cd4b0120329622adf62be09e56339d3330",
+    "approx_download_mb": 64
+  },
+  "stt": {
+    "model_name": "small.en",
+    "repo_id": "Systran/faster-whisper-small.en",
+    "approx_download_mb": 486
+  },
+  "llm": {
+    "runtime": "Ollama",
+    "model": "qwen2.5:3b",
+    "download_url": "https://ollama.com/download/windows",
+    "api_url": "http://127.0.0.1:11434/api/chat",
+    "required_for": "Free local LLM explanations in post-LIVE Performance Review and optional reasoning radio requests"
+  },
+  "notes": {
+    "ptt": "PTT has no separate downloadable model. HID/audio/PTT runtime dependencies are covered by hidapi, sounddevice, pygame and the STT model checks above.",
+    "ffmpeg": "External ffmpeg is not a hard dependency for the current faster-whisper/PyAV path. The launcher logs whether it is present but does not install it."
+  }
+}

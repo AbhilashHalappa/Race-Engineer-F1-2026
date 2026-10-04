@@ -1,0 +1,5 @@
+{
+  "early_braking": {"diagnosis": "brake_early", "label": "Braking too early", "min_confidence": 0.5, "primary_code": "brake_early"},
+  "late_throttle": {"diagnosis": "throttle_late", "primary_phase": "EXIT"},
+  "below_deadband": {"diagnosis": null, "coaching_eligible": false, "suppression_reason": "corner_loss_below_deadband"}
+}

@@ -1,0 +1,1457 @@
+{
+  "PacketHeader": {
+    "size": 29,
+    "fields": {
+      "m_packetFormat": {
+        "offset": 0,
+        "type": "H",
+        "count": 1
+      },
+      "m_gameYear": {
+        "offset": 2,
+        "type": "B",
+        "count": 1
+      },
+      "m_gameMajorVersion": {
+        "offset": 3,
+        "type": "B",
+        "count": 1
+      },
+      "m_gameMinorVersion": {
+        "offset": 4,
+        "type": "B",
+        "count": 1
+      },
+      "m_packetVersion": {
+        "offset": 5,
+        "type": "B",
+        "count": 1
+      },
+      "m_packetId": {
+        "offset": 6,
+        "type": "B",
+        "count": 1
+      },
+      "m_sessionUID": {
+        "offset": 7,
+        "type": "Q",
+        "count": 1
+      },
+      "m_sessionTime": {
+        "offset": 15,
+        "type": "f",
+        "count": 1
+      },
+      "m_frameIdentifier": {
+        "offset": 19,
+        "type": "I",
+        "count": 1
+      },
+      "m_overallFrameIdentifier": {
+        "offset": 23,
+        "type": "I",
+        "count": 1
+      },
+      "m_playerCarIndex": {
+        "offset": 27,
+        "type": "B",
+        "count": 1
+      },
+      "m_secondaryPlayerCarIndex": {
+        "offset": 28,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "MarshalZone": {
+    "size": 5,
+    "fields": {
+      "m_zoneStart": {
+        "offset": 0,
+        "type": "f",
+        "count": 1
+      },
+      "m_zoneFlag": {
+        "offset": 4,
+        "type": "b",
+        "count": 1
+      }
+    }
+  },
+  "ActiveAeroZone": {
+    "size": 8,
+    "fields": {
+      "m_zoneStart": {
+        "offset": 0,
+        "type": "f",
+        "count": 1
+      },
+      "m_zoneEnd": {
+        "offset": 4,
+        "type": "f",
+        "count": 1
+      }
+    }
+  },
+  "DRSZone": {
+    "size": 8,
+    "fields": {
+      "m_zoneStart": {
+        "offset": 0,
+        "type": "f",
+        "count": 1
+      },
+      "m_zoneEnd": {
+        "offset": 4,
+        "type": "f",
+        "count": 1
+      }
+    }
+  },
+  "WeatherForecastSample": {
+    "size": 8,
+    "fields": {
+      "m_sessionType": {
+        "offset": 0,
+        "type": "B",
+        "count": 1
+      },
+      "m_timeOffset": {
+        "offset": 1,
+        "type": "B",
+        "count": 1
+      },
+      "m_weather": {
+        "offset": 2,
+        "type": "B",
+        "count": 1
+      },
+      "m_trackTemperature": {
+        "offset": 3,
+        "type": "b",
+        "count": 1
+      },
+      "m_trackTemperatureChange": {
+        "offset": 4,
+        "type": "b",
+        "count": 1
+      },
+      "m_airTemperature": {
+        "offset": 5,
+        "type": "b",
+        "count": 1
+      },
+      "m_airTemperatureChange": {
+        "offset": 6,
+        "type": "b",
+        "count": 1
+      },
+      "m_rainPercentage": {
+        "offset": 7,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "PacketSessionData": {
+    "size": 926,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_weather": {
+        "offset": 29,
+        "type": "B",
+        "count": 1
+      },
+      "m_trackTemperature": {
+        "offset": 30,
+        "type": "b",
+        "count": 1
+      },
+      "m_airTemperature": {
+        "offset": 31,
+        "type": "b",
+        "count": 1
+      },
+      "m_totalLaps": {
+        "offset": 32,
+        "type": "B",
+        "count": 1
+      },
+      "m_trackLength": {
+        "offset": 33,
+        "type": "H",
+        "count": 1
+      },
+      "m_sessionType": {
+        "offset": 35,
+        "type": "B",
+        "count": 1
+      },
+      "m_trackId": {
+        "offset": 36,
+        "type": "b",
+        "count": 1
+      },
+      "m_formula": {
+        "offset": 37,
+        "type": "B",
+        "count": 1
+      },
+      "m_sessionTimeLeft": {
+        "offset": 38,
+        "type": "H",
+        "count": 1
+      },
+      "m_sessionDuration": {
+        "offset": 40,
+        "type": "H",
+        "count": 1
+      },
+      "m_pitSpeedLimit": {
+        "offset": 42,
+        "type": "B",
+        "count": 1
+      },
+      "m_gamePaused": {
+        "offset": 43,
+        "type": "B",
+        "count": 1
+      },
+      "m_isSpectating": {
+        "offset": 44,
+        "type": "B",
+        "count": 1
+      },
+      "m_spectatorCarIndex": {
+        "offset": 45,
+        "type": "B",
+        "count": 1
+      },
+      "m_sliProNativeSupport": {
+        "offset": 46,
+        "type": "B",
+        "count": 1
+      },
+      "m_numMarshalZones": {
+        "offset": 47,
+        "type": "B",
+        "count": 1
+      },
+      "m_marshalZones": {
+        "offset": 48,
+        "type": "MarshalZone",
+        "count": 21
+      },
+      "m_safetyCarStatus": {
+        "offset": 153,
+        "type": "B",
+        "count": 1
+      },
+      "m_networkGame": {
+        "offset": 154,
+        "type": "B",
+        "count": 1
+      },
+      "m_numWeatherForecastSamples": {
+        "offset": 155,
+        "type": "B",
+        "count": 1
+      },
+      "m_weatherForecastSamples": {
+        "offset": 156,
+        "type": "WeatherForecastSample",
+        "count": 64
+      },
+      "m_forecastAccuracy": {
+        "offset": 668,
+        "type": "B",
+        "count": 1
+      },
+      "m_aiDifficulty": {
+        "offset": 669,
+        "type": "B",
+        "count": 1
+      },
+      "m_seasonLinkIdentifier": {
+        "offset": 670,
+        "type": "I",
+        "count": 1
+      },
+      "m_weekendLinkIdentifier": {
+        "offset": 674,
+        "type": "I",
+        "count": 1
+      },
+      "m_sessionLinkIdentifier": {
+        "offset": 678,
+        "type": "I",
+        "count": 1
+      },
+      "m_pitStopWindowIdealLap": {
+        "offset": 682,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitStopWindowLatestLap": {
+        "offset": 683,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitStopRejoinPosition": {
+        "offset": 684,
+        "type": "B",
+        "count": 1
+      },
+      "m_steeringAssist": {
+        "offset": 685,
+        "type": "B",
+        "count": 1
+      },
+      "m_brakingAssist": {
+        "offset": 686,
+        "type": "B",
+        "count": 1
+      },
+      "m_gearboxAssist": {
+        "offset": 687,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitAssist": {
+        "offset": 688,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitReleaseAssist": {
+        "offset": 689,
+        "type": "B",
+        "count": 1
+      },
+      "m_ERSAssist": {
+        "offset": 690,
+        "type": "B",
+        "count": 1
+      },
+      "m_DRSAssist": {
+        "offset": 691,
+        "type": "B",
+        "count": 1
+      },
+      "m_dynamicRacingLine": {
+        "offset": 692,
+        "type": "B",
+        "count": 1
+      },
+      "m_dynamicRacingLineType": {
+        "offset": 693,
+        "type": "B",
+        "count": 1
+      },
+      "m_gameMode": {
+        "offset": 694,
+        "type": "B",
+        "count": 1
+      },
+      "m_ruleSet": {
+        "offset": 695,
+        "type": "B",
+        "count": 1
+      },
+      "m_timeOfDay": {
+        "offset": 696,
+        "type": "I",
+        "count": 1
+      },
+      "m_sessionLength": {
+        "offset": 700,
+        "type": "B",
+        "count": 1
+      },
+      "m_speedUnitsLeadPlayer": {
+        "offset": 701,
+        "type": "B",
+        "count": 1
+      },
+      "m_temperatureUnitsLeadPlayer": {
+        "offset": 702,
+        "type": "B",
+        "count": 1
+      },
+      "m_speedUnitsSecondaryPlayer": {
+        "offset": 703,
+        "type": "B",
+        "count": 1
+      },
+      "m_temperatureUnitsSecondaryPlayer": {
+        "offset": 704,
+        "type": "B",
+        "count": 1
+      },
+      "m_numSafetyCarPeriods": {
+        "offset": 705,
+        "type": "B",
+        "count": 1
+      },
+      "m_numVirtualSafetyCarPeriods": {
+        "offset": 706,
+        "type": "B",
+        "count": 1
+      },
+      "m_numRedFlagPeriods": {
+        "offset": 707,
+        "type": "B",
+        "count": 1
+      },
+      "m_equalCarPerformance": {
+        "offset": 708,
+        "type": "B",
+        "count": 1
+      },
+      "m_recoveryMode": {
+        "offset": 709,
+        "type": "B",
+        "count": 1
+      },
+      "m_flashbackLimit": {
+        "offset": 710,
+        "type": "B",
+        "count": 1
+      },
+      "m_surfaceType": {
+        "offset": 711,
+        "type": "B",
+        "count": 1
+      },
+      "m_lowFuelMode": {
+        "offset": 712,
+        "type": "B",
+        "count": 1
+      },
+      "m_raceStarts": {
+        "offset": 713,
+        "type": "B",
+        "count": 1
+      },
+      "m_tyreTemperature": {
+        "offset": 714,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitLaneTyreSim": {
+        "offset": 715,
+        "type": "B",
+        "count": 1
+      },
+      "m_carDamage": {
+        "offset": 716,
+        "type": "B",
+        "count": 1
+      },
+      "m_carDamageRate": {
+        "offset": 717,
+        "type": "B",
+        "count": 1
+      },
+      "m_collisions": {
+        "offset": 718,
+        "type": "B",
+        "count": 1
+      },
+      "m_collisionsOffForFirstLapOnly": {
+        "offset": 719,
+        "type": "B",
+        "count": 1
+      },
+      "m_mpUnsafePitRelease": {
+        "offset": 720,
+        "type": "B",
+        "count": 1
+      },
+      "m_mpOffForGriefing": {
+        "offset": 721,
+        "type": "B",
+        "count": 1
+      },
+      "m_cornerCuttingStringency": {
+        "offset": 722,
+        "type": "B",
+        "count": 1
+      },
+      "m_parcFermeRules": {
+        "offset": 723,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitStopExperience": {
+        "offset": 724,
+        "type": "B",
+        "count": 1
+      },
+      "m_safetyCar": {
+        "offset": 725,
+        "type": "B",
+        "count": 1
+      },
+      "m_safetyCarExperience": {
+        "offset": 726,
+        "type": "B",
+        "count": 1
+      },
+      "m_formationLap": {
+        "offset": 727,
+        "type": "B",
+        "count": 1
+      },
+      "m_formationLapExperience": {
+        "offset": 728,
+        "type": "B",
+        "count": 1
+      },
+      "m_redFlags": {
+        "offset": 729,
+        "type": "B",
+        "count": 1
+      },
+      "m_affectsLicenceLevelSolo": {
+        "offset": 730,
+        "type": "B",
+        "count": 1
+      },
+      "m_affectsLicenceLevelMP": {
+        "offset": 731,
+        "type": "B",
+        "count": 1
+      },
+      "m_numSessionsInWeekend": {
+        "offset": 732,
+        "type": "B",
+        "count": 1
+      },
+      "m_weekendStructure": {
+        "offset": 733,
+        "type": "B",
+        "count": 12
+      },
+      "m_sector2LapDistanceStart": {
+        "offset": 745,
+        "type": "f",
+        "count": 1
+      },
+      "m_sector3LapDistanceStart": {
+        "offset": 749,
+        "type": "f",
+        "count": 1
+      },
+      "m_activeAeroTrackStatus": {
+        "offset": 753,
+        "type": "B",
+        "count": 1
+      },
+      "m_numActiveAeroZonesFull": {
+        "offset": 754,
+        "type": "B",
+        "count": 1
+      },
+      "m_activeAeroZonesFull": {
+        "offset": 755,
+        "type": "ActiveAeroZone",
+        "count": 8
+      },
+      "m_numActiveAeroZonesPartial": {
+        "offset": 819,
+        "type": "B",
+        "count": 1
+      },
+      "m_activeAeroZonesPartial": {
+        "offset": 820,
+        "type": "ActiveAeroZone",
+        "count": 8
+      },
+      "m_numDRSZones": {
+        "offset": 884,
+        "type": "B",
+        "count": 1
+      },
+      "m_drsZones": {
+        "offset": 885,
+        "type": "DRSZone",
+        "count": 4
+      },
+      "m_startReactionTime": {
+        "offset": 917,
+        "type": "f",
+        "count": 1
+      },
+      "m_antiLockBrakesAssist": {
+        "offset": 921,
+        "type": "B",
+        "count": 1
+      },
+      "m_tractionControlAssist": {
+        "offset": 922,
+        "type": "B",
+        "count": 1
+      },
+      "m_dynamicRacingLineHiVis": {
+        "offset": 923,
+        "type": "B",
+        "count": 1
+      },
+      "m_dynamicRacingLineColourBlind": {
+        "offset": 924,
+        "type": "B",
+        "count": 1
+      },
+      "m_recurringRewindPrompt": {
+        "offset": 925,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "LapData": {
+    "size": 57,
+    "fields": {
+      "m_lastLapTimeInMS": {
+        "offset": 0,
+        "type": "I",
+        "count": 1
+      },
+      "m_currentLapTimeInMS": {
+        "offset": 4,
+        "type": "I",
+        "count": 1
+      },
+      "m_sector1TimeMSPart": {
+        "offset": 8,
+        "type": "H",
+        "count": 1
+      },
+      "m_sector1TimeMinutesPart": {
+        "offset": 10,
+        "type": "B",
+        "count": 1
+      },
+      "m_sector2TimeMSPart": {
+        "offset": 11,
+        "type": "H",
+        "count": 1
+      },
+      "m_sector2TimeMinutesPart": {
+        "offset": 13,
+        "type": "B",
+        "count": 1
+      },
+      "m_deltaToCarInFrontMSPart": {
+        "offset": 14,
+        "type": "H",
+        "count": 1
+      },
+      "m_deltaToCarInFrontMinutesPart": {
+        "offset": 16,
+        "type": "B",
+        "count": 1
+      },
+      "m_deltaToRaceLeaderMSPart": {
+        "offset": 17,
+        "type": "H",
+        "count": 1
+      },
+      "m_deltaToRaceLeaderMinutesPart": {
+        "offset": 19,
+        "type": "B",
+        "count": 1
+      },
+      "m_lapDistance": {
+        "offset": 20,
+        "type": "f",
+        "count": 1
+      },
+      "m_totalDistance": {
+        "offset": 24,
+        "type": "f",
+        "count": 1
+      },
+      "m_safetyCarDelta": {
+        "offset": 28,
+        "type": "f",
+        "count": 1
+      },
+      "m_carPosition": {
+        "offset": 32,
+        "type": "B",
+        "count": 1
+      },
+      "m_currentLapNum": {
+        "offset": 33,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitStatus": {
+        "offset": 34,
+        "type": "B",
+        "count": 1
+      },
+      "m_numPitStops": {
+        "offset": 35,
+        "type": "B",
+        "count": 1
+      },
+      "m_sector": {
+        "offset": 36,
+        "type": "B",
+        "count": 1
+      },
+      "m_currentLapInvalid": {
+        "offset": 37,
+        "type": "B",
+        "count": 1
+      },
+      "m_penalties": {
+        "offset": 38,
+        "type": "B",
+        "count": 1
+      },
+      "m_totalWarnings": {
+        "offset": 39,
+        "type": "B",
+        "count": 1
+      },
+      "m_cornerCuttingWarnings": {
+        "offset": 40,
+        "type": "B",
+        "count": 1
+      },
+      "m_numUnservedDriveThroughPens": {
+        "offset": 41,
+        "type": "B",
+        "count": 1
+      },
+      "m_numUnservedStopGoPens": {
+        "offset": 42,
+        "type": "B",
+        "count": 1
+      },
+      "m_gridPosition": {
+        "offset": 43,
+        "type": "B",
+        "count": 1
+      },
+      "m_driverStatus": {
+        "offset": 44,
+        "type": "B",
+        "count": 1
+      },
+      "m_resultStatus": {
+        "offset": 45,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitLaneTimerActive": {
+        "offset": 46,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitLaneTimeInLaneInMS": {
+        "offset": 47,
+        "type": "H",
+        "count": 1
+      },
+      "m_pitStopTimerInMS": {
+        "offset": 49,
+        "type": "H",
+        "count": 1
+      },
+      "m_pitStopShouldServePen": {
+        "offset": 51,
+        "type": "B",
+        "count": 1
+      },
+      "m_speedTrapFastestSpeed": {
+        "offset": 52,
+        "type": "f",
+        "count": 1
+      },
+      "m_speedTrapFastestLap": {
+        "offset": 56,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "PacketLapData": {
+    "size": 1399,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_lapData": {
+        "offset": 29,
+        "type": "LapData",
+        "count": 24
+      },
+      "m_timeTrialPBCarIdx": {
+        "offset": 1397,
+        "type": "B",
+        "count": 1
+      },
+      "m_timeTrialRivalCarIdx": {
+        "offset": 1398,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "LiveryColour": {
+    "size": 3,
+    "fields": {
+      "red": {
+        "offset": 0,
+        "type": "B",
+        "count": 1
+      },
+      "green": {
+        "offset": 1,
+        "type": "B",
+        "count": 1
+      },
+      "blue": {
+        "offset": 2,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "ParticipantData": {
+    "size": 60,
+    "fields": {
+      "m_aiControlled": {
+        "offset": 0,
+        "type": "B",
+        "count": 1
+      },
+      "m_driverId": {
+        "offset": 1,
+        "type": "H",
+        "count": 1
+      },
+      "m_networkId": {
+        "offset": 3,
+        "type": "H",
+        "count": 1
+      },
+      "m_teamId": {
+        "offset": 5,
+        "type": "H",
+        "count": 1
+      },
+      "m_myTeam": {
+        "offset": 7,
+        "type": "B",
+        "count": 1
+      },
+      "m_raceNumber": {
+        "offset": 8,
+        "type": "B",
+        "count": 1
+      },
+      "m_nationality": {
+        "offset": 9,
+        "type": "B",
+        "count": 1
+      },
+      "m_name": {
+        "offset": 10,
+        "type": "c",
+        "count": 32
+      },
+      "m_yourTelemetry": {
+        "offset": 42,
+        "type": "B",
+        "count": 1
+      },
+      "m_showOnlineNames": {
+        "offset": 43,
+        "type": "B",
+        "count": 1
+      },
+      "m_techLevel": {
+        "offset": 44,
+        "type": "H",
+        "count": 1
+      },
+      "m_platform": {
+        "offset": 46,
+        "type": "B",
+        "count": 1
+      },
+      "m_numColours": {
+        "offset": 47,
+        "type": "B",
+        "count": 1
+      },
+      "m_liveryColours": {
+        "offset": 48,
+        "type": "LiveryColour",
+        "count": 4
+      }
+    }
+  },
+  "PacketParticipantsData": {
+    "size": 1470,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_numActiveCars": {
+        "offset": 29,
+        "type": "B",
+        "count": 1
+      },
+      "m_participants": {
+        "offset": 30,
+        "type": "ParticipantData",
+        "count": 24
+      }
+    }
+  },
+  "CarTelemetryData": {
+    "size": 59,
+    "fields": {
+      "m_speed": {
+        "offset": 0,
+        "type": "H",
+        "count": 1
+      },
+      "m_throttle": {
+        "offset": 2,
+        "type": "f",
+        "count": 1
+      },
+      "m_steer": {
+        "offset": 6,
+        "type": "f",
+        "count": 1
+      },
+      "m_brake": {
+        "offset": 10,
+        "type": "f",
+        "count": 1
+      },
+      "m_clutch": {
+        "offset": 14,
+        "type": "B",
+        "count": 1
+      },
+      "m_gear": {
+        "offset": 15,
+        "type": "b",
+        "count": 1
+      },
+      "m_engineRPM": {
+        "offset": 16,
+        "type": "H",
+        "count": 1
+      },
+      "m_drs": {
+        "offset": 18,
+        "type": "B",
+        "count": 1
+      },
+      "m_revLightsPercent": {
+        "offset": 19,
+        "type": "B",
+        "count": 1
+      },
+      "m_revLightsBitValue": {
+        "offset": 20,
+        "type": "H",
+        "count": 1
+      },
+      "m_brakesTemperature": {
+        "offset": 22,
+        "type": "H",
+        "count": 4
+      },
+      "m_tyresSurfaceTemperature": {
+        "offset": 30,
+        "type": "B",
+        "count": 4
+      },
+      "m_tyresInnerTemperature": {
+        "offset": 34,
+        "type": "B",
+        "count": 4
+      },
+      "m_engineTemperature": {
+        "offset": 38,
+        "type": "B",
+        "count": 1
+      },
+      "m_tyresPressure": {
+        "offset": 39,
+        "type": "f",
+        "count": 4
+      },
+      "m_surfaceType": {
+        "offset": 55,
+        "type": "B",
+        "count": 4
+      }
+    }
+  },
+  "PacketCarTelemetryData": {
+    "size": 1448,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_carTelemetryData": {
+        "offset": 29,
+        "type": "CarTelemetryData",
+        "count": 24
+      },
+      "m_mfdPanelIndex": {
+        "offset": 1445,
+        "type": "B",
+        "count": 1
+      },
+      "m_mfdPanelIndexSecondaryPlayer": {
+        "offset": 1446,
+        "type": "B",
+        "count": 1
+      },
+      "m_suggestedGear": {
+        "offset": 1447,
+        "type": "b",
+        "count": 1
+      }
+    }
+  },
+  "CarStatusData": {
+    "size": 59,
+    "fields": {
+      "m_tractionControl": {
+        "offset": 0,
+        "type": "B",
+        "count": 1
+      },
+      "m_antiLockBrakes": {
+        "offset": 1,
+        "type": "B",
+        "count": 1
+      },
+      "m_fuelMix": {
+        "offset": 2,
+        "type": "B",
+        "count": 1
+      },
+      "m_frontBrakeBias": {
+        "offset": 3,
+        "type": "B",
+        "count": 1
+      },
+      "m_pitLimiterStatus": {
+        "offset": 4,
+        "type": "B",
+        "count": 1
+      },
+      "m_fuelInTank": {
+        "offset": 5,
+        "type": "f",
+        "count": 1
+      },
+      "m_fuelCapacity": {
+        "offset": 9,
+        "type": "f",
+        "count": 1
+      },
+      "m_fuelRemainingLaps": {
+        "offset": 13,
+        "type": "f",
+        "count": 1
+      },
+      "m_maxRPM": {
+        "offset": 17,
+        "type": "H",
+        "count": 1
+      },
+      "m_idleRPM": {
+        "offset": 19,
+        "type": "H",
+        "count": 1
+      },
+      "m_maxGears": {
+        "offset": 21,
+        "type": "B",
+        "count": 1
+      },
+      "m_drsAllowed": {
+        "offset": 22,
+        "type": "B",
+        "count": 1
+      },
+      "m_drsActivationDistance": {
+        "offset": 23,
+        "type": "H",
+        "count": 1
+      },
+      "m_actualTyreCompound": {
+        "offset": 25,
+        "type": "B",
+        "count": 1
+      },
+      "m_visualTyreCompound": {
+        "offset": 26,
+        "type": "B",
+        "count": 1
+      },
+      "m_tyresAgeLaps": {
+        "offset": 27,
+        "type": "B",
+        "count": 1
+      },
+      "m_vehicleFIAFlags": {
+        "offset": 28,
+        "type": "b",
+        "count": 1
+      },
+      "m_enginePowerICE": {
+        "offset": 29,
+        "type": "f",
+        "count": 1
+      },
+      "m_enginePowerMGUK": {
+        "offset": 33,
+        "type": "f",
+        "count": 1
+      },
+      "m_ersStoreEnergy": {
+        "offset": 37,
+        "type": "f",
+        "count": 1
+      },
+      "m_ersDeployMode": {
+        "offset": 41,
+        "type": "B",
+        "count": 1
+      },
+      "m_ersHarvestedThisLapMGUK": {
+        "offset": 42,
+        "type": "f",
+        "count": 1
+      },
+      "m_ersHarvestedThisLapMGUH": {
+        "offset": 46,
+        "type": "f",
+        "count": 1
+      },
+      "m_ersHarvestLimitPerLap": {
+        "offset": 50,
+        "type": "f",
+        "count": 1
+      },
+      "m_ersDeployedThisLap": {
+        "offset": 54,
+        "type": "f",
+        "count": 1
+      },
+      "m_networkPaused": {
+        "offset": 58,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "PacketCarStatusData": {
+    "size": 1445,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_carStatusData": {
+        "offset": 29,
+        "type": "CarStatusData",
+        "count": 24
+      }
+    }
+  },
+  "CarDamageData": {
+    "size": 46,
+    "fields": {
+      "m_tyresWear": {
+        "offset": 0,
+        "type": "f",
+        "count": 4
+      },
+      "m_tyresDamage": {
+        "offset": 16,
+        "type": "B",
+        "count": 4
+      },
+      "m_brakesDamage": {
+        "offset": 20,
+        "type": "B",
+        "count": 4
+      },
+      "m_tyreBlisters": {
+        "offset": 24,
+        "type": "B",
+        "count": 4
+      },
+      "m_frontLeftWingDamage": {
+        "offset": 28,
+        "type": "B",
+        "count": 1
+      },
+      "m_frontRightWingDamage": {
+        "offset": 29,
+        "type": "B",
+        "count": 1
+      },
+      "m_rearWingDamage": {
+        "offset": 30,
+        "type": "B",
+        "count": 1
+      },
+      "m_floorDamage": {
+        "offset": 31,
+        "type": "B",
+        "count": 1
+      },
+      "m_diffuserDamage": {
+        "offset": 32,
+        "type": "B",
+        "count": 1
+      },
+      "m_sidepodDamage": {
+        "offset": 33,
+        "type": "B",
+        "count": 1
+      },
+      "m_drsFault": {
+        "offset": 34,
+        "type": "B",
+        "count": 1
+      },
+      "m_ersFault": {
+        "offset": 35,
+        "type": "B",
+        "count": 1
+      },
+      "m_gearBoxDamage": {
+        "offset": 36,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineDamage": {
+        "offset": 37,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineMGUHWear": {
+        "offset": 38,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineESWear": {
+        "offset": 39,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineCEWear": {
+        "offset": 40,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineICEWear": {
+        "offset": 41,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineMGUKWear": {
+        "offset": 42,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineTCWear": {
+        "offset": 43,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineBlown": {
+        "offset": 44,
+        "type": "B",
+        "count": 1
+      },
+      "m_engineSeized": {
+        "offset": 45,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "PacketCarDamageData": {
+    "size": 1133,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_carDamageData": {
+        "offset": 29,
+        "type": "CarDamageData",
+        "count": 24
+      }
+    }
+  },
+  "TyreSetData": {
+    "size": 10,
+    "fields": {
+      "m_actualTyreCompound": {
+        "offset": 0,
+        "type": "B",
+        "count": 1
+      },
+      "m_visualTyreCompound": {
+        "offset": 1,
+        "type": "B",
+        "count": 1
+      },
+      "m_wear": {
+        "offset": 2,
+        "type": "B",
+        "count": 1
+      },
+      "m_available": {
+        "offset": 3,
+        "type": "B",
+        "count": 1
+      },
+      "m_recommendedSession": {
+        "offset": 4,
+        "type": "B",
+        "count": 1
+      },
+      "m_lifeSpan": {
+        "offset": 5,
+        "type": "B",
+        "count": 1
+      },
+      "m_usableLife": {
+        "offset": 6,
+        "type": "B",
+        "count": 1
+      },
+      "m_lapDeltaTime": {
+        "offset": 7,
+        "type": "h",
+        "count": 1
+      },
+      "m_fitted": {
+        "offset": 9,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "PacketTyreSetsData": {
+    "size": 231,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_carIdx": {
+        "offset": 29,
+        "type": "B",
+        "count": 1
+      },
+      "m_tyreSetData": {
+        "offset": 30,
+        "type": "TyreSetData",
+        "count": 20
+      },
+      "m_fittedIdx": {
+        "offset": 230,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "CarTelemetry2Data": {
+    "size": 10,
+    "fields": {
+      "m_activeAeroMode": {
+        "offset": 0,
+        "type": "B",
+        "count": 1
+      },
+      "m_activeAeroAvailable": {
+        "offset": 1,
+        "type": "B",
+        "count": 1
+      },
+      "m_activeAeroActivationDistance": {
+        "offset": 2,
+        "type": "H",
+        "count": 1
+      },
+      "m_overtakeAvailable": {
+        "offset": 4,
+        "type": "B",
+        "count": 1
+      },
+      "m_overtakeActive": {
+        "offset": 5,
+        "type": "B",
+        "count": 1
+      },
+      "m_overtakeActivationDistance": {
+        "offset": 6,
+        "type": "H",
+        "count": 1
+      },
+      "m_2026Regulations": {
+        "offset": 8,
+        "type": "B",
+        "count": 1
+      },
+      "m_drivingWrongWay": {
+        "offset": 9,
+        "type": "B",
+        "count": 1
+      }
+    }
+  },
+  "PacketCarTelemetry2Data": {
+    "size": 269,
+    "fields": {
+      "m_header": {
+        "offset": 0,
+        "type": "PacketHeader",
+        "count": 1
+      },
+      "m_carTelemetry2Data": {
+        "offset": 29,
+        "type": "CarTelemetry2Data",
+        "count": 24
+      }
+    }
+  }
+}

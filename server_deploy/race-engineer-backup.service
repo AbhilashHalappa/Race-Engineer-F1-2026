@@ -1,0 +1,7 @@
+[Unit]
+Description=Race Engineer Server Backup
+[Service]
+Type=oneshot
+User=raceadmin
+Group=raceadmin
+ExecStart=/srv/race-engineer/server/app/race-engineer-backup.sh

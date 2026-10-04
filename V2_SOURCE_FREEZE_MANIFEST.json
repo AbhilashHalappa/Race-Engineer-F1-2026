@@ -1,0 +1,167 @@
+{
+  "files": [
+    {
+      "path": "src/performance_scoring.py",
+      "sha256": "e4225c78c6dba5b71dac6fe160d6589fcedb781e9d42d7f8febf9866a52dcd00",
+      "size": 25428
+    },
+    {
+      "path": "src/data_quality.py",
+      "sha256": "f68f09cc21d982d3d936e895c7f1a31fa0411c77c241ffdbc39ea7500b2f2953",
+      "size": 9958
+    },
+    {
+      "path": "src/performance_review.py",
+      "sha256": "a579ba07e8bc63bdf8c42d760278a884e0c0d43b2dab3a74b39d58c67e5b605d",
+      "size": 39890
+    },
+    {
+      "path": "src/corner_coach.py",
+      "sha256": "7683e6adf10c191ba39935048d9af747c6b936ff83ba0cbd4306318b031f9e52",
+      "size": 144285
+    },
+    {
+      "path": "src/coaching_priority.py",
+      "sha256": "a80c1ca63d360f1a3890c4d7b4b078d7402240ff8472de5348d7e8f2b6a837f0",
+      "size": 15185
+    },
+    {
+      "path": "src/lap_stint_intelligence.py",
+      "sha256": "07c1ec41ef9d461246fc3b16826a314fdbc043fb0ef0ddd76696e8e092cf0530",
+      "size": 6290
+    },
+    {
+      "path": "src/race_state_receiver.py",
+      "sha256": "6cce1c2c2a9c61f7e8e69df7ebd239a85ebe08eb1abd15052f2cfa481bfc55ff",
+      "size": 134065
+    },
+    {
+      "path": "src/practice_planner.py",
+      "sha256": "9c4d507839f9ef8b4b6859924faaf1192cb498a59394c16ad36c124457d5713f",
+      "size": 29303
+    },
+    {
+      "path": "src/practice_hub_ui.py",
+      "sha256": "09286f2ea0520f528d533c184302e87a6058fa10e120bdd885eddb10dd1426af",
+      "size": 19251
+    },
+    {
+      "path": "src/performance_history.py",
+      "sha256": "88fb08c1925fc248f82c45af47ad14f9e2abb78e32ddbc7056a15f01d50cd6f2",
+      "size": 130106
+    },
+    {
+      "path": "src/driver_skill.py",
+      "sha256": "73ce4f63f20da923dffc737f07844236f8e3e36ff5cba57b279da46b721e5c77",
+      "size": 13772
+    },
+    {
+      "path": "src/dashboard_server.py",
+      "sha256": "cd9b6bad16e8272ee377dc31cbc531bd6fb599200bcc37ad2a5b9666f44cad3f",
+      "size": 115508
+    },
+    {
+      "path": "src/overlay/window.py",
+      "sha256": "489243a27c037cfad8dedaba3406bc5da9b3b6e3ce488ae352a3a170a93e2345",
+      "size": 504849
+    },
+    {
+      "path": "src/pre_corner_delta.py",
+      "sha256": "9a5c0a516f8555cd88eeeb5ab73bdd2b72461f0e7396ae0e12f3a18c78cd35c7",
+      "size": 6189
+    },
+    {
+      "path": "src/overlay/data.py",
+      "sha256": "ebbbf7a609a0fb82d801d546138971602284eb4d87858478ea45bb9bdf045f15",
+      "size": 112753
+    },
+    {
+      "path": "src/server_sync.py",
+      "sha256": "27b4e42728d21d16d6e921750baf5b481e8eddb29a8522c2b778c9b97326ab8b",
+      "size": 33145
+    }
+  ],
+  "phase": "V2.0.11",
+  "protected_baseline_tag": "V2.9.1.3.5.37",
+  "purpose": "Protected V2.9.1.3.5.37 baseline plus explicitly justified, evidence-backed V2.0.11 hotfix deviations. Unlisted protected-source changes remain forbidden.",
+  "schema": 1,
+  "setup_lab": "skipped_by_user_scope",
+  "justified_deviations": [
+    {
+      "path": "src/corner_coach.py",
+      "from_protected_baseline": "V2.9.1.3.5.37",
+      "reason": "Real live Time Trial evidence: EA exposes lap 1 on the pre-line rolling-start segment; the same-number S/F wrap was treated as lap completion, suppressing Corner Coach until lap 2. Rebased Corner Coach ownership at the first clean S/F timing anchor to match MeasuredPerformance.",
+      "validation": [
+        "tests/test_v2913539_time_trial_first_lap_rival_coach.py",
+        "tests/test_v2913540_time_trial_first_timed_lap_anchor.py"
+      ]
+    },
+    {
+      "path": "src/overlay/window.py",
+      "from_protected_baseline": "V2.9.1.3.5.37",
+      "reason": "Explicit user requirement: remove the compact Hardware card from CONTROL and add a dedicated HARDWARE main tab containing the three Wheel Companion Ultra Lite V1.5.0 hardware sub-tabs while preserving the existing shared wheel-dashboard telemetry transport.",
+      "validation": [
+        "tests/test_hardware_workspace_v2913542.py",
+        "tests/test_ui_r0_r3_completion.py",
+        "tests/test_v09150_wheel_telemetry_bridge.py",
+        "tests/test_v09151_wheel_link_reliability.py"
+      ]
+    },
+    {
+      "path": "src/overlay/window.py",
+      "from_protected_baseline": "V2.9.1.3.5.42",
+      "reason": "Explicit user requirement in V2.9.1.3.5.43: the PRE-CORNER lower bar must compare the driver action with the reference coach for the currently displayed phase (brake point, turn-in, throttle pickup) instead of showing whole-corner progress. Implementation is presentation-only and preserves CORNER COACH timing, diagnosis, scoring and voice logic.",
+      "validation": [
+        "tests/test_v2913543_pre_corner_phase_delta_bar.py",
+        "tests/test_ui_r0_r3_completion.py",
+        "tests/test_ui_r2_global_true_zoom.py"
+      ]
+    },
+    {
+      "path": "src/overlay/data.py + src/pre_corner_delta.py",
+      "from_protected_baseline": "V2.9.1.3.5.42",
+      "reason": "Presentation support for V2.9.1.3.5.43: pass the already-compiled reference driving events to the overlay and derive the visual phase delta without modifying protected CORNER COACH core logic.",
+      "validation": [
+        "tests/test_v2913543_pre_corner_phase_delta_bar.py"
+      ]
+    },
+    {
+      "path": "src/overlay/window.py + src/pre_corner_delta.py",
+      "from_protected_baseline": "V2.9.1.3.5.43",
+      "reason": "Explicit user requirement in V2.9.1.3.5.44: PRE-CORNER must visibly transition through BRAKE, ENTRY, TURN-IN, APEX, EXIT and THROTTLE rather than collapsing/skipping phases, the active lower comparator must use the matching driver-vs-reference event for each phase, and the information text must be materially larger. This remains presentation-only and does not modify protected CORNER COACH timing, diagnosis, scoring or voice authority.",
+      "validation": [
+        "tests/test_v2913543_pre_corner_phase_delta_bar.py",
+        "tests/test_v2913544_pre_corner_transition_readability.py",
+        "tests/test_ui_r0_r3_completion.py",
+        "tests/test_ui_r2_global_true_zoom.py"
+      ]
+    },
+    {
+      "path": "src/overlay/window.py",
+      "from_protected_baseline": "V2.9.1.3.5.44",
+      "reason": "Explicit user-reported V2.9.1.3.5.45 Weather / Fuel overlay clipping: logical heights and footer construction order were adjusted so the non-applicable banner, content cards, metrics and footer do not overlap. UI-only; telemetry, strategy values and update logic are unchanged.",
+      "validation": [
+        "tests/test_v2913545_weather_fuel_clipping_hotfix.py",
+        "tests/test_ui_r2_global_true_zoom.py"
+      ]
+    },
+    {
+      "path": "src/server_sync.py",
+      "from_protected_baseline": "V2.9.1.3.5.45",
+      "reason": "Stable V2 release audit found the first idle retention pass was accidentally keyed to OS monotonic uptime by initializing the last-retention timestamp to 0.0. A PC booted less than the retention interval ago could skip verified local cleanup. None now explicitly means no pass has run, so the first idle pass executes once and later passes remain throttled.",
+      "validation": [
+        "tests/test_v291_storage_retention_driver_soft_delete.py::test_verified_bulk_retention_keeps_latest_10_recording_sessions_and_prunes_other_classes"
+      ]
+    },
+    {
+      "path": "src/overlay/window.py",
+      "from_protected_baseline": "V2.9.1.3.5.45",
+      "reason": "Explicit user requirement for Stable V2 RC2 product branding: standardize visible window titles, add the Race Engineer logo/wordmark header and Stable V2 identity to Control Center. Presentation-only; no telemetry, coaching, scoring, strategy, replay, server-sync or persistence logic changed.",
+      "validation": [
+        "tests/test_stable_v2_branding_rc2.py",
+        "tests/test_ui_r0_r3_completion.py",
+        "tests/test_v1910_live_history_control_center.py"
+      ]
+    }
+  ]
+}
