@@ -1057,8 +1057,18 @@ sudo ufw status
 
 ## License / distribution
 
-This repository is the Race Engineer Stable V2 project release. Add a dedicated `LICENSE` file if you intend to publish the project under a specific open-source or redistribution license. Until a license is explicitly provided, repository availability should not be interpreted as granting a particular open-source license.
+Race Engineer Stable V2 – License / Distribution Notice
 
+This repository contains the Race Engineer Stable V2 project release.
+It is provided solely for educational and experimental purposes.
+
+- Not for commercial use
+- Not for sales, resale, or monetization
+- Intended for learning, testing, and non‑commercial experimentation
+
+No open‑source license is currently applied.
+Until a dedicated LICENSE file is explicitly added, the availability of this repository
+must not be interpreted as granting rights under any particular open‑source license.
 ---
 
 ## Release status
