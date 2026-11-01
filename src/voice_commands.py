@@ -507,7 +507,7 @@ def parse_intent(text: str) -> VoiceIntent:
         return VoiceIntent.PENALTIES
     if has("engine temperature", "water temperature", "car temperature", "motor temperature"):
         return VoiceIntent.ENGINE_TEMPERATURE
-    if has("track temperature", "track temp"):
+    if has("track temperature", "track temp", "turn the temperature", "turn temperature"):
         return VoiceIntent.TRACK_TEMPERATURE
     if has("air temperature", "air temp", "ambient temperature"):
         return VoiceIntent.AIR_TEMPERATURE
