@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 import time
 
 from .engineer import AutomaticEngineer
@@ -45,6 +46,10 @@ class ACCRuntime:
         self._last_lap = 0
         self._session_uid = 1
         self._session_signature = None
+        self._map_track_key = None
+        self._map_last_normalized = None
+        self._map_trace = []
+        self._map_collecting = False
         self.latest_state = None
 
     def start(self) -> None:
@@ -55,6 +60,10 @@ class ACCRuntime:
         self._fuel_start_lap = None
         self._last_lap = 0
         self._session_signature = None
+        self._map_track_key = None
+        self._map_last_normalized = None
+        self._map_trace = []
+        self._map_collecting = False
         self.latest_state = None
 
     def stop(self) -> None:
@@ -111,7 +120,12 @@ class ACCRuntime:
             self._fuel_start_kg = None
             self._fuel_start_lap = None
             self._last_lap = 0
+            self._map_track_key = None
+            self._map_last_normalized = None
+            self._map_trace = []
+            self._map_collecting = False
 
+        map_trace = self._update_track_map(telemetry)
         fuel = getattr(telemetry, "fuel_kg", None)
         lap = self.status.lap
         self._update_fuel_history(lap, fuel, now)
@@ -124,6 +138,8 @@ class ACCRuntime:
             fuel_remaining_laps=self._estimated_fuel_laps(fuel),
             session_uid=1_000_000 + self._session_uid,
         )
+        if isinstance(getattr(state, "extended", None), dict):
+            state.extended["acc_map_trace"] = map_trace
         self.latest_state = state
         # ACC uses the shared transition/threshold rules, but deliberately
         # skips F1-only event and pit-strategy evaluation categories.
@@ -135,6 +151,49 @@ class ACCRuntime:
             message for message in messages
             if not str(message.key).startswith(("pit:deterministic_plan", "strategy:pit"))
         )
+
+    def _update_track_map(self, telemetry) -> tuple[tuple[float, float], ...]:
+        """Learn an ACC-only circuit outline from one complete Shared Memory lap."""
+        track = str(getattr(telemetry, "track", "") or "").strip()
+        normalized = getattr(telemetry, "normalized_car_position", None)
+        x = getattr(telemetry, "world_position_x", None)
+        z = getattr(telemetry, "world_position_z", None)
+        if not track or not all(isinstance(v, (int, float)) and math.isfinite(float(v))
+                                for v in (normalized, x, z)):
+            return tuple(self._map_trace)
+        normalized = max(0.0, min(1.0, float(normalized)))
+        key = f"ACC {track}"
+        if key != self._map_track_key:
+            self._map_track_key = key
+            self._map_last_normalized = None
+            self._map_trace = []
+            self._map_collecting = normalized <= 0.05
+
+        previous = self._map_last_normalized
+        wrapped = previous is not None and normalized < previous - 0.5
+        if wrapped:
+            if self._map_collecting and len(self._map_trace) >= 100:
+                try:
+                    from .overlay.track_maps import save_learned_track_map
+                    save_learned_track_map(key, self._map_trace)
+                except Exception:
+                    pass
+            self._map_trace = []
+            self._map_collecting = True
+        elif not self._map_collecting and normalized <= 0.05:
+            self._map_collecting = True
+
+        if self._map_collecting:
+            point = (float(x), float(z))
+            if not self._map_trace or math.hypot(
+                point[0] - self._map_trace[-1][0],
+                point[1] - self._map_trace[-1][1],
+            ) >= 0.25:
+                self._map_trace.append(point)
+            if len(self._map_trace) > 4000:
+                self._map_trace = self._map_trace[::2]
+        self._map_last_normalized = normalized
+        return tuple(self._map_trace)
 
     def _update_fuel_history(self, lap: int, fuel, now: float) -> None:
         if not isinstance(fuel, (int, float)) or fuel < 0:
