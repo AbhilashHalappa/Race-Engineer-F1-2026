@@ -5184,7 +5184,10 @@ class FuelOverlayWindow(DataOverlayWindow):
         self.state_chip.setStyleSheet(self.chip_label(state, state_color).styleSheet())
         self.range_label.setText("-- laps" if margin is None else f"{margin:+.2f} laps")
         self.range_label.setStyleSheet(f"color:{_rgba(state_color if margin is not None else MUTED)};background:transparent;")
-        if s.fuel_remaining_mass is not None:
+        if getattr(s,"game_id","f1_26") == "acc" and s.fuel_l is not None:
+            self.big_mass.setText(f"{float(s.fuel_l):.1f} L")
+            self.big_mass.setStyleSheet(f"color:{_rgba(WHITE)};background:transparent;")
+        elif s.fuel_remaining_mass is not None:
             self.big_mass.setText(f"{float(s.fuel_remaining_mass):.2f} kg")
             self.big_mass.setStyleSheet(f"color:{_rgba(WHITE)};background:transparent;")
         else:
@@ -5196,7 +5199,12 @@ class FuelOverlayWindow(DataOverlayWindow):
         else:
             self.big_delta.setText("--")
             self.big_delta.setStyleSheet(f"color:{_rgba(MUTED)};background:transparent;")
-        if s.fuel_remaining_mass is not None and s.fuel_capacity is not None and float(s.fuel_capacity) > 0:
+        if getattr(s,"game_id","f1_26") == "acc" and s.fuel_l is not None and s.fuel_capacity is not None and float(s.fuel_capacity) > 0:
+            pct=max(0,min(100,int(round(float(s.fuel_l)/float(s.fuel_capacity)*100))))
+            self.fuel_bar.setValue(pct)
+            self.fuel_bar.setStyleSheet(f"QProgressBar{{background:rgba(255,255,255,18);border:1px solid rgba(255,255,255,18);border-radius:4px;}} QProgressBar::chunk{{background:rgb({state_color.red()},{state_color.green()},{state_color.blue()});border-radius:4px;}}")
+            self.mass.setText(f"Fuel {s.fuel_l:.1f} / {s.fuel_capacity:.1f} L")
+        elif s.fuel_remaining_mass is not None and s.fuel_capacity is not None and float(s.fuel_capacity) > 0:
             pct=max(0,min(100,int(round(float(s.fuel_remaining_mass)/float(s.fuel_capacity)*100))))
             self.fuel_bar.setValue(pct)
             self.fuel_bar.setStyleSheet(f"QProgressBar{{background:rgba(255,255,255,18);border:1px solid rgba(255,255,255,18);border-radius:4px;}} QProgressBar::chunk{{background:rgb({state_color.red()},{state_color.green()},{state_color.blue()});border-radius:4px;}}")
