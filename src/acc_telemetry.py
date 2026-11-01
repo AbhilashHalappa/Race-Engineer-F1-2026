@@ -121,8 +121,9 @@ class _SharedMemory:
 class ACCSharedMemoryReader:
     """ACC telemetry provider with the existing snapshots() interface."""
 
-    def __init__(self, *, on_snapshot=None, poll_hz: float = 60.0):
+    def __init__(self, *, on_snapshot=None, on_live_snapshot=None, poll_hz: float = 60.0):
         self.on_snapshot = on_snapshot
+        self.on_live_snapshot = on_live_snapshot
         self.poll_interval = 1.0 / max(10.0, min(240.0, poll_hz))
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -394,6 +395,11 @@ class ACCSharedMemoryReader:
             )
             self._live = live
             self._wheel = wheel
+        if self.on_live_snapshot:
+            try:
+                self.on_live_snapshot(live)
+            except Exception as exc:
+                print(f"[ACC] Race Engineer telemetry consumer failed: {exc}", flush=True)
         if self.on_snapshot:
             try:
                 self.on_snapshot(wheel)

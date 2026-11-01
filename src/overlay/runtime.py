@@ -327,7 +327,10 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
 
                     if desired == "acc":
                         from ..acc_telemetry import ACCSharedMemoryReader
-                        reader = ACCSharedMemoryReader(on_snapshot=receiver.wheel_bridge.update)
+                        reader = ACCSharedMemoryReader(
+                            on_snapshot=receiver.wheel_bridge.update,
+                            on_live_snapshot=receiver.process_acc_telemetry,
+                        )
                         acc_reader_state["reader"] = reader
                         reader.start()
                         print("[ACC] Shared Memory reader started; waiting for ACC physics packets", flush=True)

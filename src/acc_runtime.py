@@ -49,6 +49,11 @@ class ACCRuntime:
         self._map_track_key = None
         self._map_last_normalized = None
         self._map_trace = []
+        self._map_samples = {}
+        self._map_distance_m = 0.0
+        self._map_last_world_point = None
+        self._map_last_sample_distance = 0.0
+        self._map_map_ready = False
         self._map_collecting = False
         self.latest_state = None
 
@@ -63,6 +68,11 @@ class ACCRuntime:
         self._map_track_key = None
         self._map_last_normalized = None
         self._map_trace = []
+        self._map_samples = {}
+        self._map_distance_m = 0.0
+        self._map_last_world_point = None
+        self._map_last_sample_distance = 0.0
+        self._map_map_ready = False
         self._map_collecting = False
         self.latest_state = None
 
@@ -123,6 +133,11 @@ class ACCRuntime:
             self._map_track_key = None
             self._map_last_normalized = None
             self._map_trace = []
+            self._map_samples = {}
+            self._map_distance_m = 0.0
+            self._map_last_world_point = None
+            self._map_last_sample_distance = 0.0
+            self._map_map_ready = False
             self._map_collecting = False
 
         map_trace = self._update_track_map(telemetry)
@@ -153,45 +168,97 @@ class ACCRuntime:
         )
 
     def _update_track_map(self, telemetry) -> tuple[tuple[float, float], ...]:
-        """Learn an ACC-only circuit outline from one complete Shared Memory lap."""
+        """Learn a complete ACC circuit with a measured distance axis.
+
+        ACC exposes normalized lap position and world coordinates, not a
+        ready-to-use metric lap distance. Accumulate the observed world path
+        for one clean start/finish-to-start/finish lap, then pass that measured
+        trace through the application's existing geometry validator.
+        """
         track = str(getattr(telemetry, "track", "") or "").strip()
         normalized = getattr(telemetry, "normalized_car_position", None)
         x = getattr(telemetry, "world_position_x", None)
         z = getattr(telemetry, "world_position_z", None)
-        if not track or not all(isinstance(v, (int, float)) and math.isfinite(float(v))
-                                for v in (normalized, x, z)):
+        if not track or not all(
+            isinstance(v, (int, float)) and math.isfinite(float(v))
+            for v in (normalized, x, z)
+        ):
             return tuple(self._map_trace)
+
         normalized = max(0.0, min(1.0, float(normalized)))
-        key = f"ACC {track}"
+        key = track
+        point = (float(x), float(z))
         if key != self._map_track_key:
             self._map_track_key = key
             self._map_last_normalized = None
             self._map_trace = []
-            self._map_collecting = normalized <= 0.05
+            self._map_samples = {}
+            self._map_distance_m = 0.0
+            self._map_last_world_point = None
+            self._map_last_sample_distance = 0.0
+            try:
+                from .overlay.track_maps import get_track_map_distances
+                self._map_map_ready = bool(get_track_map_distances(key))
+            except Exception:
+                self._map_map_ready = False
+            # Reuse a valid shared track map; learn only when no distance axis exists.
+            self._map_collecting = (not self._map_map_ready and normalized <= 0.002)
 
         previous = self._map_last_normalized
         wrapped = previous is not None and normalized < previous - 0.5
         if wrapped:
-            if self._map_collecting and len(self._map_trace) >= 100:
-                try:
-                    from .overlay.track_maps import save_learned_track_map
-                    save_learned_track_map(key, self._map_trace)
-                except Exception:
-                    pass
+            saved = False
+            if self._map_collecting and len(self._map_samples) >= 100:
+                last_point = self._map_last_world_point
+                if last_point is not None:
+                    closure_m = math.hypot(
+                        point[0] - last_point[0], point[1] - last_point[1]
+                    )
+                    measured_length = self._map_distance_m + closure_m
+                    try:
+                        from .overlay.track_maps import save_learned_track_map_samples
+                        saved = save_learned_track_map_samples(
+                            key, self._map_samples, measured_length
+                        ) is not None
+                    except Exception:
+                        saved = False
+            self._map_map_ready = self._map_map_ready or saved
+            # The current sample is the beginning of the next measured lap.
             self._map_trace = []
-            self._map_collecting = True
-        elif not self._map_collecting and normalized <= 0.05:
-            self._map_collecting = True
+            self._map_samples = {}
+            self._map_distance_m = 0.0
+            self._map_last_world_point = None
+            self._map_last_sample_distance = 0.0
+            self._map_collecting = not self._map_map_ready and normalized <= 0.002
 
         if self._map_collecting:
-            point = (float(x), float(z))
-            if not self._map_trace or math.hypot(
-                point[0] - self._map_trace[-1][0],
-                point[1] - self._map_trace[-1][1],
-            ) >= 0.25:
+            last_point = self._map_last_world_point
+            if last_point is None:
+                self._map_samples[0.0] = {
+                    "world_x": point[0], "world_z": point[1]
+                }
+                self._map_last_world_point = point
                 self._map_trace.append(point)
+            else:
+                step_m = math.hypot(
+                    point[0] - last_point[0], point[1] - last_point[1]
+                )
+                # Ignore stationary noise and implausible position jumps. A
+                # jump is not allowed to inflate the measured distance axis.
+                if 0.25 <= step_m <= 30.0:
+                    self._map_distance_m += step_m
+                    self._map_last_world_point = point
+                    if self._map_distance_m - self._map_last_sample_distance >= 2.0:
+                        self._map_samples[round(self._map_distance_m, 2)] = {
+                            "world_x": point[0], "world_z": point[1]
+                        }
+                        self._map_last_sample_distance = self._map_distance_m
+                    if not self._map_trace or step_m >= 0.25:
+                        self._map_trace.append(point)
+
             if len(self._map_trace) > 4000:
                 self._map_trace = self._map_trace[::2]
+
         self._map_last_normalized = normalized
         return tuple(self._map_trace)
 

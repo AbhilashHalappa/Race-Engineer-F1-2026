@@ -40,7 +40,8 @@ from .session_coach_report import build_coach_report, save_coach_report
 from .driver_history import DriverHistory
 from .performance_history import PerformanceHistoryStore, driver_profile_from_state
 from .driving_time import F1DrivingTimeTracker
-from .telemetry_pipeline import telemetry_pipeline, frame_from_f1
+from .telemetry_pipeline import telemetry_pipeline, frame_from_f1, frame_from_acc, race_state_from_acc
+from .acc_runtime import ACCRuntime
 
 
 def persistent_history_allowed(mode: str) -> bool:
@@ -204,6 +205,13 @@ class RaceStateReceiver(TelemetryReceiver):
         # switches which source is allowed into the deterministic state pipeline.
         self._telemetry_mode = "live"
         self._replay_thread_id = None
+        # ACC snapshots enter the same measured-performance and coaching
+        # pipeline as F1. Keep one session identity and map learner per ACC run.
+        self._acc_session_signature = None
+        self._acc_session_uid_counter = 0
+        self._acc_session_uid = None
+        self._acc_session_started_at = None
+        self._acc_map_tracker = ACCRuntime()
 
 
     def _history_autosave_worker(self) -> None:
@@ -413,8 +421,13 @@ class RaceStateReceiver(TelemetryReceiver):
         if mode not in {"live", "replay", "acc"}:
             raise ValueError(f"Unsupported telemetry mode: {mode}")
         with self._runtime_lock:
+            previous_mode = self._telemetry_mode
             self._telemetry_mode = mode
             self._replay_thread_id = replay_thread_id if mode == "replay" else None
+        if mode != previous_mode:
+            self._acc_session_signature = None
+            self._acc_session_uid = None
+            self._acc_session_started_at = None
         # Align the shared consumer path with the selected native telemetry source.
         if mode == "acc":
             telemetry_pipeline.select_game("acc")
@@ -426,6 +439,118 @@ class RaceStateReceiver(TelemetryReceiver):
     def telemetry_mode(self) -> str:
         with self._runtime_lock:
             return self._telemetry_mode
+
+    def process_acc_telemetry(self, telemetry) -> None:
+        """Feed ACC Shared Memory snapshots through the existing live consumers.
+
+        ACC is adapted to RaceState once, then uses the same measured-performance,
+        Automatic Engineer, Corner Coach and integrated coaching implementations
+        as the F1 UDP path. This method is called by the ACC reader thread.
+        """
+        if self.telemetry_mode() != "acc":
+            return
+
+        stamp = getattr(telemetry, "last_packet_monotonic", None)
+        if not isinstance(stamp, (int, float)):
+            stamp = time.monotonic()
+        stamp = float(stamp)
+        signature = (
+            str(getattr(telemetry, "car", "") or ""),
+            str(getattr(telemetry, "track", "") or ""),
+            getattr(telemetry, "session_type", None),
+            getattr(telemetry, "session_index", None),
+        )
+        generated = []
+
+        with self._state_lock:
+            if signature != self._acc_session_signature:
+                self._acc_session_signature = signature
+                self._acc_session_uid_counter += 1
+                self._acc_session_uid = 1_000_000 + self._acc_session_uid_counter
+                self._acc_session_started_at = stamp
+                self.engine.performance.reset()
+                self.automatic_engineer.reset(self._acc_session_uid)
+                self.corner_coach.reset_session()
+                self.live_coach.reset_session()
+                self.session_summary_tracker = SessionSummaryTracker()
+                self.session_summary = None
+                self.session_summary_revision = 0
+                self._last_telemetry_engineer_eval_at = None
+                self._last_telemetry_coach_eval_at = None
+                self._acc_map_tracker.start()
+
+            session_uid = self._acc_session_uid or 1_000_001
+            map_trace = self._acc_map_tracker._update_track_map(telemetry)
+            state = race_state_from_acc(telemetry, session_uid=session_uid)
+            state.session.session_time_s = max(
+                0.0, stamp - float(self._acc_session_started_at or stamp)
+            )
+            state.extended["acc_map_trace"] = map_trace
+            self.engine.state = state
+
+            # Keep the common game-neutral telemetry feed current as well.
+            try:
+                common_frame = frame_from_acc(telemetry, now=stamp)
+                if common_frame is not None:
+                    telemetry_pipeline.publish(common_frame)
+            except Exception as common_telemetry_error:
+                print(f"[TELEMETRY PIPELINE] ACC adapter skipped: {common_telemetry_error}", flush=True)
+
+            # The recorder needs every fresh ACC sample; expensive radio/coaching
+            # decisions remain cadence-limited just like the F1 live pipeline.
+            self.engine.performance.observe(state)
+            self._handle_session_transition_locked()
+            self.session_summary_tracker.observe(state)
+
+            engineer_due = (
+                self._last_telemetry_engineer_eval_at is None
+                or stamp - self._last_telemetry_engineer_eval_at >= self._telemetry_engineer_interval_s
+            )
+            if engineer_due:
+                generated = list(self.automatic_engineer.evaluate(
+                    state, stamp, changed_category="telemetry"
+                ))
+                self._last_telemetry_engineer_eval_at = stamp
+
+            if not self._automatic_engineer_voice_enabled:
+                self.automatic_engineer.drain()
+                generated = []
+
+            coach_due = (
+                self._last_telemetry_coach_eval_at is None
+                or stamp - self._last_telemetry_coach_eval_at >= self._telemetry_coach_interval_s
+            )
+            if coach_due:
+                self._last_telemetry_coach_eval_at = stamp
+                corner_messages = self.corner_coach.observe(
+                    self.engine.performance, state, stamp
+                )
+                corner_status = self.corner_coach.status(
+                    self.engine.performance, state
+                )
+                self._sync_corner_speech_gates(
+                    damage_blocked=bool(corner_status.get("damage_coaching_blocked"))
+                )
+                live_coaching = self.live_coach.observe(
+                    self.engine.performance,
+                    state,
+                    stamp,
+                    generated_messages=list(generated) + list(corner_messages),
+                    suppress_pre_post=True,
+                )
+                if not self._automatic_engineer_voice_enabled:
+                    live_coaching = []
+                generated.extend(corner_messages)
+                generated.extend(live_coaching)
+                coach_status = self.live_coach.status()
+                state.extended["coaching_suite"] = coach_status
+                state.extended["corner_coach"] = corner_status
+                state.extended["post_corner_coaching"] = coach_status.get("post_corner", {})
+
+        if generated:
+            self._submit_radio(generated)
+            if self.engineer_only:
+                print(format_messages(generated), flush=True)
 
     def current_reference_selection(self) -> str:
         with self._state_lock:
