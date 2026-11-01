@@ -1,0 +1,54 @@
+Receiver_S3 optimized low-heat / low-latency build
+===================================================
+
+Main changes
+------------
+1. Gamepad.cpp
+   - Replaced 37 separate USB HID reports per loop with one complete report.
+   - Sends only when the state changes, with a 100 ms keepalive.
+   - Preserves the previous button numbering, pedals and clutches (no steering on this hub).
+
+2. ESPNowManager.cpp
+   - Keeps the 19-byte legacy wheel packet and 77-byte display packet.
+   - Sends only one ESP-NOW packet at a time.
+   - Waits for the send callback before sending to the next peer.
+   - Keeps only the newest dashboard snapshot, so stale frames cannot queue.
+   - Removed Serial printing from the Wi-Fi callback.
+   - Reduced receiver Wi-Fi TX power from the default maximum to 11 dBm.
+
+3. StatusLED.cpp
+   - Updates the NeoPixel only when the status colour changes.
+
+4. Receiver_S3.ino
+   - Adds a 1 ms RTOS yield at the end of loop().
+
+5. SimHub.cpp
+   - Reserves the complete 384-byte input buffer once.
+
+6. Config.h
+   - Production debug output disabled to avoid CDC/HID contention.
+   - Dashboard transmission remains 50 Hz.
+   - Wheel and pedal receive rates are unchanged.
+
+Upload target
+-------------
+Upload only this Receiver_S3 project to the ESP32-S3 Zero receiver.
+Do not reflash the wheel, pedals or display.
+
+TX power adjustment
+-------------------
+The default is ESPNOW_TX_POWER_QDBM = 44 (11 dBm).
+If a device is several metres away or packets drop, try 52 (13 dBm).
+
+
+Independent display / controls update
+-------------------------------------
+1. The steering-wheel dashboard packet now always has TX priority.
+2. The LCD packet is sent as ESP-NOW broadcast, so the receiver never waits
+   for an LCD MAC acknowledgement or retries caused by LCD reception quality.
+3. LCD telemetry is capped at 25 Hz; wheel telemetry stays at 50 Hz.
+4. Failed output frames are dropped instead of retried. The next frame always
+   contains newer data, preventing a latency backlog.
+5. USB HID is serviced first in loop(), before SimHub and LCD telemetry work.
+6. Wheel and pedal receive callbacks and HID operation do not depend on the
+   LCD being powered, connected, or receiving packets.
