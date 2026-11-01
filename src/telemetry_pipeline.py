@@ -174,6 +174,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         brake=_percent_fraction(getattr(telemetry, "brake_percent", None)),
         steering=_signed_percent_fraction(getattr(telemetry, "steering_percent", None)),
         fuel_l=_optional_float(getattr(telemetry, "fuel_l", None)),
+        fuel_remaining_laps=_optional_float(getattr(telemetry, "fuel_estimated_laps", None)),
         last_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
         best_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "best_lap_time_ms", None)),
         in_pit=bool(getattr(telemetry, "is_in_pit", False)),
