@@ -125,7 +125,16 @@ class ACCRuntime:
             session_uid=self._session_uid,
         )
         self.latest_state = state
-        return self.engineer.evaluate(state, now)
+        # ACC uses the shared transition/threshold rules, but deliberately
+        # skips F1-only event and pit-strategy evaluation categories.
+        messages = self.engineer.evaluate(state, now, changed_category="telemetry")
+        # Drain the internal queue here because ACC delivers only the filtered
+        # per-update messages through the existing speech path.
+        self.engineer.drain()
+        return tuple(
+            message for message in messages
+            if not str(message.key).startswith(("pit:deterministic_plan", "strategy:pit"))
+        )
 
     def _update_fuel_history(self, lap: int, fuel, now: float) -> None:
         if not isinstance(fuel, (int, float)) or fuel < 0:
