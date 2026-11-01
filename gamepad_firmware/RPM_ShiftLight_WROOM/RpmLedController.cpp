@@ -11,6 +11,7 @@ bool shiftFlashOn = false;
 uint8_t lastRenderedRpm = 255;
 bool lastRenderedShift = false;
 bool lastRenderedFresh = false;
+bool lastRenderedShiftFlash = false;
 
 uint32_t colourForPosition(uint8_t positionPercent)
 {
@@ -69,11 +70,12 @@ void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetr
     }
 
     if (rpmPercent != lastRenderedRpm || shiftLight != lastRenderedShift ||
-        telemetryFresh != lastRenderedFresh || (shiftLight && telemetryFresh))
+        telemetryFresh != lastRenderedFresh || shiftFlashOn != lastRenderedShiftFlash)
     {
         render(rpmPercent, shiftLight, telemetryFresh);
         lastRenderedRpm = rpmPercent;
         lastRenderedShift = shiftLight;
         lastRenderedFresh = telemetryFresh;
+        lastRenderedShiftFlash = shiftFlashOn;
     }
 }
