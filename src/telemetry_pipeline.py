@@ -178,6 +178,15 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
                 lap_distance = max(0.0, min(1.0, normalized)) * max(valid)
         except Exception:
             pass
+    raw_lap_valid = getattr(telemetry, "lap_valid", None)
+    if raw_lap_valid is not None:
+        try:
+            lap_valid_value = int(raw_lap_valid)
+            lap_valid = bool(lap_valid_value)
+        except (TypeError, ValueError, OverflowError):
+            lap_valid = None
+    else:
+        lap_valid = None
     return TelemetryFrame(
         game_id="acc", source=str(getattr(telemetry, "source", "ACC Shared Memory")),
         received_at=float(stamp),
@@ -406,7 +415,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         previous_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
         sector=sector,
         lap_distance_m=number(lap_distance),
-        lap_valid=getattr(telemetry, "lap_valid", None),
+        lap_valid=lap_valid,
         total_distance_m=None,
         pit_status=pit_status,
         penalties_s=number(getattr(telemetry, "penalty_time_s", None), int),
