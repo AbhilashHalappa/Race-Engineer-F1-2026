@@ -114,6 +114,8 @@ def install() -> None:
         original_print_status = RaceStateReceiver.print_status
 
         def print_status(self, packets_per_second, now):
+            if getattr(self, "engineer_only", False):
+                return original_print_status(self, packets_per_second, now)
             if getattr(self, "_telemetry_mode", "live") != "acc":
                 return original_print_status(self, packets_per_second, now)
             reader = getattr(self, "acc_reader", None)
