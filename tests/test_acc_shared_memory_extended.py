@@ -1,3 +1,5 @@
+import pytest
+
 from src.acc_shared_memory_extended import (
     _Physics, _Graphics, _Static,
     PHYSICS_SIZE, GRAPHICS_SIZE, STATIC_SIZE,
@@ -33,13 +35,13 @@ def test_acc_physics_layout_decodes_full_live_engineering_channels():
     assert PHYSICS_SIZE == len(bytes(page))
     assert decoded["packet_id"] == 12
     assert decoded["gear_raw"] == 4
-    assert decoded["tyre_pressure_psi"] == (26.1, 26.2, 26.3, 26.4)
+    assert decoded["tyre_pressure_psi"] == pytest.approx((26.1, 26.2, 26.3, 26.4))
     assert decoded["tyre_core_temp_c"] == (82.0, 83.0, 84.0, 85.0)
     assert decoded["brake_temp_c"] == (540.0, 550.0, 560.0, 570.0)
     assert decoded["air_temp_c"] == 22.0
     assert decoded["road_temp_c"] == 31.0
     assert decoded["water_temp_c"] == 92.0
-    assert decoded["brake_bias"] == 0.54
+    assert decoded["brake_bias"] == pytest.approx(0.54)
 
 
 def test_acc_graphics_layout_decodes_lap_timing_strategy_and_weather():
