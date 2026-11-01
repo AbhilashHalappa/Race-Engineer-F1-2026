@@ -40,6 +40,7 @@ from .session_coach_report import build_coach_report, save_coach_report
 from .driver_history import DriverHistory
 from .performance_history import PerformanceHistoryStore, driver_profile_from_state
 from .driving_time import F1DrivingTimeTracker
+from .telemetry_pipeline import telemetry_pipeline, frame_from_f1
 
 
 def persistent_history_allowed(mode: str) -> bool:
@@ -414,6 +415,11 @@ class RaceStateReceiver(TelemetryReceiver):
         with self._runtime_lock:
             self._telemetry_mode = mode
             self._replay_thread_id = replay_thread_id if mode == "replay" else None
+        # Align the shared consumer path with the selected native telemetry source.
+        if mode == "acc":
+            telemetry_pipeline.select_game("acc")
+        elif mode == "live":
+            telemetry_pipeline.select_game("f1_26")
         self._last_telemetry_engineer_eval_at = None
         self._last_telemetry_coach_eval_at = None
 
@@ -1477,6 +1483,13 @@ class RaceStateReceiver(TelemetryReceiver):
         state_start_ns = time.perf_counter_ns() if measure_latency else 0
         with self._state_lock:
             state_changed = self.engine.update(packet, now)
+            if state_changed and self._telemetry_mode == "live":
+                try:
+                    common_frame = frame_from_f1(self.engine.state, now=now)
+                    if common_frame is not None:
+                        telemetry_pipeline.publish(common_frame)
+                except Exception as common_telemetry_error:
+                    print(f"[TELEMETRY PIPELINE] F1 adapter skipped: {common_telemetry_error}", flush=True)
             if state_changed:
                 try:
                     self.driving_time_tracker.observe(self.engine.state, mode=self.telemetry_mode(), packet_category=CATEGORIES[packet.header.m_packetId])
