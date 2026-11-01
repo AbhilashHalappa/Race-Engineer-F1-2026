@@ -156,3 +156,89 @@ def test_acc_runtime_feeds_converted_state_to_existing_engineer():
     assert any(message.key == "lap:2" for message in messages)
     assert runtime.status.fuel_l == 48.0
     runtime.stop()
+
+
+
+def test_acc_adapter_maps_real_tyre_temperature_pressure_and_environment():
+    live = SimpleNamespace(
+        source="ACC Shared Memory",
+        last_packet_monotonic=15.0,
+        car="GT3",
+        track="Monza",
+        session=2,
+        session_type=2,
+        lap_number=6,
+        position=2,
+        speed_kph=205,
+        gear=5,
+        engine_rpm=7100,
+        throttle_percent=90,
+        brake_percent=0,
+        steering_percent=12,
+        fuel_l=35.0,
+        fuel_estimated_laps=10.5,
+        current_lap_time_ms=92345,
+        last_lap_time_ms=91000,
+        best_lap_time_ms=90000,
+        is_in_pit=False,
+        is_in_pit_lane=False,
+        tyre_compound="Dry",
+        tyre_pressures_psi=(26.1, 26.2, 26.3, 26.4),
+        tyre_core_temperatures_c=(82.0, 83.0, 84.0, 85.0),
+        brake_temperatures_c=(500.0, 510.0, 520.0, 530.0),
+        brake_pressures=(10.0, 11.0, 12.0, 13.0),
+        air_temperature_c=22.0,
+        track_temperature_c=31.0,
+        water_temperature_c=92.0,
+        brake_bias=0.54,
+        tc_level=3,
+        abs_level=4,
+        normalized_car_position=0.5,
+        rain_intensity=0,
+        track_grip_status=2,
+    )
+
+    state = race_state_from_acc(live)
+
+    assert state.player.tyres.visual_compound.name == "Dry"
+    assert state.player.tyres.core_temperature_c.FL == 82.0
+    assert state.player.tyres.pressure_psi.RR == 26.4
+    assert state.player.telemetry.brakes_temperature_c.FR == 510.0
+    assert state.player.telemetry.brake_pressure.RL == 12.0
+    assert state.player.telemetry.engine_temperature_c == 92
+    assert state.session.air_temperature_c == 22
+    assert state.session.track_temperature_c == 31
+    assert state.player.fuel.remaining_laps == 10.5
+    assert state.extended["brake_bias"] == 0.54
+    assert state.extended["tc_level"] == 3
+
+
+def test_acc_common_frame_contains_extended_telemetry():
+    live = SimpleNamespace(
+        source="ACC Shared Memory",
+        last_packet_monotonic=4.0,
+        session=2,
+        session_type=2,
+        tyre_pressures_psi=(26.0, 26.1, 26.2, 26.3),
+        tyre_core_temperatures_c=(80.0, 81.0, 82.0, 83.0),
+        brake_temperatures_c=(500.0, 501.0, 502.0, 503.0),
+        brake_pressures=(10.0, 10.1, 10.2, 10.3),
+        clutch_percent=25,
+        current_lap_time_ms=90000,
+        air_temperature_c=21.0,
+        track_temperature_c=30.0,
+        water_temperature_c=90.0,
+        fuel_estimated_laps=8.5,
+        tc_level=2,
+        abs_level=3,
+    )
+
+    frame = frame_from_acc(live)
+
+    assert frame.session_type == "Race"
+    assert frame.tyre_temperatures == (80.0, 81.0, 82.0, 83.0)
+    assert frame.tyre_pressures == (26.0, 26.1, 26.2, 26.3)
+    assert frame.brake_temperatures_c == (500.0, 501.0, 502.0, 503.0)
+    assert frame.current_lap_time_s == 90.0
+    assert frame.fuel_remaining_laps == 8.5
+    assert frame.air_temperature_c == 21.0
