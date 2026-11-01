@@ -259,6 +259,16 @@ class ACCRuntime:
             if len(self._map_trace) > 4000:
                 self._map_trace = self._map_trace[::2]
 
+        # Before a learned distance axis exists, expose the measured distance
+        # accumulated from ACC world-position samples to the common RaceState
+        # adapter. This lets the first clean lap be recorded while it teaches
+        # the track map, rather than waiting for the map to be saved at S/F.
+        if self._map_collecting:
+            try:
+                telemetry.lap_distance_m = float(self._map_distance_m)
+            except (AttributeError, TypeError):
+                pass
+
         self._map_last_normalized = normalized
         return tuple(self._map_trace)
 

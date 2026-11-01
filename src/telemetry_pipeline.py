@@ -355,7 +355,10 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
     player_name = str(getattr(telemetry, "player_name", "") or "").strip()
     normalized_position = number(getattr(telemetry, "normalized_car_position", None))
     track_length = None
-    lap_distance = None
+    # ACCRuntime supplies measured metres during the first map-learning lap.
+    # Prefer that real sample distance; use a saved map's distance axis once
+    # one is available for subsequent laps.
+    lap_distance = number(getattr(telemetry, "lap_distance_m", None))
     if track_name and normalized_position is not None:
         try:
             from .overlay.track_maps import get_track_map_distances
@@ -363,7 +366,8 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
             valid_distances = [float(v) for v in distances if isinstance(v, (int, float)) and v >= 0]
             if len(valid_distances) >= 2 and max(valid_distances) > 0:
                 track_length = max(valid_distances)
-                lap_distance = max(0.0, min(1.0, normalized_position)) * track_length
+                if lap_distance is None:
+                    lap_distance = max(0.0, min(1.0, normalized_position)) * track_length
         except Exception:
             pass
 
