@@ -382,7 +382,8 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         track_temperature_c=number(getattr(telemetry, "track_temperature_c", None), int),
         air_temperature_c=number(getattr(telemetry, "air_temperature_c", None), int),
         time_left_s=number(getattr(telemetry, "session_time_left_s", None), int),
-        total_laps=number(getattr(telemetry, "number_of_laps", None), int),
+        # ACC numberOfLaps semantics are ambiguous across the shared-memory docs;
+        # retain the raw field in extended instead of treating it as race distance.
         track_length_m=number(track_length),
         session_time_s=None,
         weather=rain,
