@@ -152,6 +152,53 @@ class ACCRuntime:
             if not str(message.key).startswith(("pit:deterministic_plan", "strategy:pit"))
         )
 
+    @staticmethod
+    def _map_trace_is_valid(points) -> bool:
+        """Reject partial laps, straight-line traces and asynchronous position jumps."""
+        if not isinstance(points, (tuple, list)) or len(points) < 100:
+            return False
+        try:
+            pts = [(float(point[0]), float(point[1])) for point in points]
+        except (TypeError, ValueError, IndexError, OverflowError):
+            return False
+        if not all(math.isfinite(x) and math.isfinite(z) for x, z in pts):
+            return False
+
+        xs = [point[0] for point in pts]
+        zs = [point[1] for point in pts]
+        width = max(xs) - min(xs)
+        height = max(zs) - min(zs)
+        diagonal = math.hypot(width, height)
+        # A circuit must occupy meaningful area on both world axes. This rejects
+        # the common failure where one stale player coordinate is repeated and
+        # the renderer closes the resulting near-straight trace into a fake loop.
+        if diagonal < 250.0 or min(width, height) < 20.0:
+            return False
+
+        jumps = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:])]
+        if not jumps:
+            return False
+        ordered = sorted(jumps)
+        median_jump = ordered[len(ordered) // 2]
+        if max(jumps) > max(65.0, median_jump * 8.0):
+            return False
+
+        path_length = sum(jumps)
+        if path_length < 1200.0 or path_length / diagonal < 1.8:
+            return False
+        closure = math.hypot(pts[-1][0] - pts[0][0], pts[-1][1] - pts[0][1])
+        if closure > max(40.0, diagonal * 0.025):
+            return False
+
+        # Shoelace area is a second independent degeneracy check. A long but
+        # almost-collinear out-and-back path must not become a circuit outline.
+        area_twice = 0.0
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            area_twice += a[0] * b[1] - b[0] * a[1]
+        if abs(area_twice) * 0.5 < 1200.0:
+            return False
+        return True
+
     def _update_track_map(self, telemetry) -> tuple[tuple[float, float], ...]:
         """Learn an ACC-only circuit outline from one complete Shared Memory lap."""
         track = str(getattr(telemetry, "track", "") or "").strip()
@@ -161,7 +208,14 @@ class ACCRuntime:
         if not track or not all(isinstance(v, (int, float)) and math.isfinite(float(v))
                                 for v in (normalized, x, z)):
             return tuple(self._map_trace)
-        normalized = max(0.0, min(1.0, float(normalized)))
+        normalized = float(normalized)
+        # Do not clamp corrupt coordinates into a plausible-looking lap axis.
+        if normalized < 0.0 or normalized > 1.0:
+            self._map_trace = []
+            self._map_collecting = False
+            self._map_last_normalized = None
+            return ()
+
         key = f"ACC {track}"
         if key != self._map_track_key:
             self._map_track_key = key
@@ -172,14 +226,21 @@ class ACCRuntime:
         previous = self._map_last_normalized
         wrapped = previous is not None and normalized < previous - 0.5
         if wrapped:
-            if self._map_collecting and len(self._map_trace) >= 100:
+            if self._map_collecting and self._map_trace_is_valid(self._map_trace):
                 try:
                     from .overlay.track_maps import save_learned_track_map
                     save_learned_track_map(key, self._map_trace)
                 except Exception:
                     pass
+            # Always start a fresh candidate lap, even when the previous one was
+            # rejected, so a transient bad sample cannot permanently stop learning.
             self._map_trace = []
             self._map_collecting = True
+        elif previous is not None and normalized - previous > 0.12:
+            # A large forward jump means the coordinate stream skipped a section.
+            # Discard this candidate and wait for the next real start/finish wrap.
+            self._map_trace = []
+            self._map_collecting = normalized <= 0.05
         elif not self._map_collecting and normalized <= 0.05:
             self._map_collecting = True
 
