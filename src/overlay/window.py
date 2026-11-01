@@ -6106,6 +6106,13 @@ class F1DashCanvas(QWidget):
     def _paint_tyres_page(self, p, s, w, h):
         self._page_header(p,w,h,"TYRES & BRAKES","FOUR-CORNER TYRE / BRAKE STATUS")
         tyre=self._sticky_wheels(s,"tyre_surface_temperatures_c")
+        core=self._sticky_wheels(s,"tyre_core_temperatures_c")
+        # ACC exposes core temperature, not inner/outer surface channels.
+        # Keep F1's original OUTER/INNER presentation unchanged.
+        core_only = not any(isinstance(v,(int,float)) for v in tyre) and any(isinstance(v,(int,float)) for v in core)
+        if core_only:
+            tyre = core
+        outer_label = "CORE" if core_only else "OUTER"
         inner=self._sticky_wheels(s,"tyre_inner_temperatures_c")
         brake=self._sticky_wheels(s,"brake_temperatures_c")
         pressure=self._sticky_wheels(s,"tyre_pressures_psi")
@@ -6154,7 +6161,7 @@ class F1DashCanvas(QWidget):
 
             outer_w=r.width()*.38; outer_x=r.x()+r.width()*.02 if left else r.right()-outer_w-r.width()*.02
             y0=r.y()+r.height()*.17; align=Qt.AlignLeft if left else Qt.AlignRight
-            rows=(("PSI",pv,"",2,QColor(245,247,249)),("OUTER",tv,"°C",0,oc),("INNER",iv,"°C",0,ic),("WEAR",wv,"%",1,self._wear_color(wv)),("TYRE DMG",dv,"%",1,self._wear_color(dv)),("BLISTER",blv,"%",1,self._wear_color(blv)))
+            rows=(("PSI",pv,"",2,QColor(245,247,249)),(outer_label,tv,"°C",0,oc),("INNER",iv,"°C",0,ic),("WEAR",wv,"%",1,self._wear_color(wv)),("TYRE DMG",dv,"%",1,self._wear_color(dv)),("BLISTER",blv,"%",1,self._wear_color(blv)))
             for ri,(lab,val,suf,dec,col) in enumerate(rows): row(lab,val,suf,dec,col,outer_x,y0+ri*h*.046,outer_w,align)
 
             gy=r.y()+r.height()*.23; gh=r.height()*.50; gw=max(12.0,r.width()*.043); gg=max(6.0,r.width()*.020)
