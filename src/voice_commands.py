@@ -638,6 +638,25 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
     acc = isinstance(getattr(state, "extended", None), dict) and state.extended.get("game_id") == "acc"
     if acc:
         data = state.extended
+        if intent == VoiceIntent.TYRE_STATUS:
+            compound = str(data.get("tyre_compound") or "unknown compound")
+            temps = data.get("tyre_core_temperatures_c")
+            pressures = data.get("tyre_pressures_psi")
+            parts = [f"compound {compound}"]
+            if isinstance(temps, (tuple, list)) and any(isinstance(v, (int, float)) for v in temps):
+                parts.append("core temperatures " + ", ".join(f"{float(v):.0f}" if isinstance(v, (int, float)) else "--" for v in temps) + " degrees")
+            if isinstance(pressures, (tuple, list)) and any(isinstance(v, (int, float)) for v in pressures):
+                parts.append("pressures " + ", ".join(f"{float(v):.1f}" if isinstance(v, (int, float)) else "--" for v in pressures) + " PSI")
+            return "Tyres: " + "; ".join(parts) + "."
+        if intent == VoiceIntent.BRAKE_STATUS:
+            temps = data.get("brake_temperatures_c")
+            pressures = data.get("brake_pressures")
+            parts = []
+            if isinstance(temps, (tuple, list)) and any(isinstance(v, (int, float)) for v in temps):
+                parts.append("temperatures " + ", ".join(f"{float(v):.0f}" if isinstance(v, (int, float)) else "--" for v in temps) + " degrees")
+            if isinstance(pressures, (tuple, list)) and any(isinstance(v, (int, float)) for v in pressures):
+                parts.append("pressure readings " + ", ".join(f"{float(v):.1f}" if isinstance(v, (int, float)) else "--" for v in pressures))
+            return "Brakes: " + "; ".join(parts) + "." if parts else "ACC brake data unavailable."
         if intent == VoiceIntent.BEST_LAP:
             value = data.get("best_lap_time_ms")
             return f"ACC session best lap {float(value) / 1000.0:.3f} seconds." if isinstance(value, (int, float)) and value > 0 else "ACC best lap time unavailable."
