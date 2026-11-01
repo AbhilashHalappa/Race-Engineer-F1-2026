@@ -20,6 +20,7 @@
 #include "PedalCalibration.h"
 #include "PedalSensorBridge.h"
 #include "HandbrakeSensorBridge.h"
+#include "RpmLedProtocol.h"
 
 
 //=============================================================================
@@ -113,11 +114,14 @@ void loop()
         if (RaceEngineerTelemetry::hasData())
         {
             ESPNow::sendDashboard(RaceEngineerTelemetry::getDashboard());
+            const WheelDashboardPayload& ledData = RaceEngineerTelemetry::getDashboard();
+            ESPNow::sendRpmLed(ledData.rpmPercent, ledData.shiftLight);
         }
         else
         {
             const WheelDashboardPayload safeDashboard = {};
             ESPNow::sendDashboard(safeDashboard);
+            ESPNow::sendRpmLed(0, 0);
         }
     }
 #endif
