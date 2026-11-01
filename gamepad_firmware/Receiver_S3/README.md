@@ -145,3 +145,16 @@ Wheel Companion uses WC/WL V3 and PC/PS V3 for handbrake live values and saved c
 ## Pedal sensor configuration bridge (V1)
 
 The receiver now forwards the independent 54-byte `LC` pedal sensor configuration frames from USB CDC to the paired pedal ESP32 over ESP-NOW, and relays 54-byte `LS` status frames back to USB CDC. This is separate from the existing `PC/PS V1–V3` pedal response-curve calibration protocol. Existing HID mapping, curves, deadzones, `LegacyPacket` layout and pedal telemetry remain unchanged. See `PEDAL_SENSOR_PROTOCOL.md` for the complete frame layout and command list.
+
+
+## Independent ESP32-WROOM RPM Shift-Light
+
+The Receiver can forward the Race Engineer `rpmPercent` and `shiftLight` fields to the independent 60-pixel ESP32-WROOM controller in `gamepad_firmware/RPM_ShiftLight_WROOM`.
+
+- WROOM STA MAC: `A0:B7:65:DD:85:04` (configured as `RPM_LED_MAC` in `Secrets.h`).
+- ESP-NOW channel: the existing receiver channel (`ESPNOW_CHANNEL`, currently 1).
+- Wire protocol: compact 8-byte checksummed `RpmLedFrame`; mirrored in the WROOM sketch folder.
+- TX priority: wheel dashboard first, pedal/handbrake configuration next, RPM LED telemetry last.
+- The wheel dashboard payload and all existing pedal, shifter, handbrake and MotorTemp packet formats remain unchanged.
+
+See the WROOM folder README for wiring, library dependency and flashing instructions.
