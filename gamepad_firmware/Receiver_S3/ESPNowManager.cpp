@@ -136,18 +136,6 @@ void processTxQueue()
 
     if (wheelTxPending && !network.wheel.connected) wheelTxPending = false;
 
-    if (rpmLedTxPending)
-    {
-        txBusy = true;
-        txIsPedalSensorConfig = false;
-        txIsAuxiliary = true;
-        const esp_err_t result = esp_now_send(RPM_LED_MAC,
-            reinterpret_cast<const uint8_t*>(&queuedRpmLedFrame), sizeof(queuedRpmLedFrame));
-        rpmLedTxPending = false;
-        if (result != ESP_OK) { txBusy = false; ++sendFailures; }
-        return;
-    }
-
     if (pedalSensorTxPending)
     {
         txBusy = true;
@@ -171,6 +159,17 @@ void processTxQueue()
             sizeof(queuedHandbrakeSensorFrame));
         handbrakeSensorTxPending = false;
         if (result != ESP_OK) { txBusy = false; txIsPedalSensorConfig = false; ++sendFailures; }
+    }
+    // Lowest-priority telemetry: never delay wheel or sensor configuration TX.
+    if (rpmLedTxPending)
+    {
+        txBusy = true;
+        txIsPedalSensorConfig = false;
+        txIsAuxiliary = true;
+        const esp_err_t result = esp_now_send(RPM_LED_MAC,
+            reinterpret_cast<const uint8_t*>(&queuedRpmLedFrame), sizeof(queuedRpmLedFrame));
+        rpmLedTxPending = false;
+        if (result != ESP_OK) { txBusy = false; txIsAuxiliary = false; ++sendFailures; }
     }
 }
 
