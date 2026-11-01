@@ -1384,6 +1384,9 @@ class RaceStateReceiver(TelemetryReceiver):
 
     def raw_datagram_received(self, data, source, now) -> None:
         """Lossless raw recording/capture before latest-state coalescing."""
+        with self._runtime_lock:
+            if self._telemetry_mode == "acc":
+                return
         super().raw_datagram_received(data, source, now)
         if self.recorder is not None and self.recording_error is None:
             if self.recorder.last_error:
