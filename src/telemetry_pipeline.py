@@ -220,7 +220,12 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
             "driver_stint_left_ms", "driver_stint_total_ms", "gap_ahead_ms",
             "gap_behind_ms", "fuel_to_add_l", "current_tyre_set", "strategy_tyre_set",
             "exhaust_temperature_c", "engine_running", "ignition_on", "is_ai_controlled",
-            "g_force", "local_velocity", "local_angular_velocity",
+            "g_force", "local_velocity", "local_angular_velocity", "world_position_x",
+        "world_position_y", "world_position_z", "surface_grip", "session_index", "active_cars",
+        "player_car_id", "delta_lap_time_ms", "estimated_lap_time_ms", "split_time_ms",
+        "delta_positive", "clock_s", "global_yellow", "global_green", "global_chequered",
+        "global_red", "rain_lights", "flashing_lights", "lights_stage", "wiper_level",
+        "track_configuration",
         )),
     )
 
