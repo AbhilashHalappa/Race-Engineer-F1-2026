@@ -34,6 +34,7 @@ namespace ESPNow
 
     // Send latest dashboard telemetry to Wheel ESP32
     bool sendDashboard(const WheelDashboardPayload &dashboard);
+    bool sendRpmLed(uint8_t rpmPercent, uint8_t shiftLight);
 
     // Queue a low-rate sensor configuration command for the pedal ESP32.
     bool sendPedalSensorFrame(const PedalSensorFrame& frame);
