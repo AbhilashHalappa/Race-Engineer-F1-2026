@@ -690,7 +690,7 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
             grip = data.get("track_grip_name") or "unknown"
             return f"Current ACC conditions: {rain} rain, {grip} track grip."
         if intent == VoiceIntent.RAIN_CHANCE:
-            names = {0: "no rain", 1: "drizzle", 2: "light rain", 3: "medium rain", 4: "heavy rain", 5: "thunderstorm"}
+            names = {0: "no rain", 1: "drizzle", 2: "light rain", 3: "medium rain", 4: "heavy rain"}
             current = names.get(data.get("rain_intensity"), "unknown")
             ten = names.get(data.get("rain_intensity_10min"), "unknown")
             thirty = names.get(data.get("rain_intensity_30min"), "unknown")
