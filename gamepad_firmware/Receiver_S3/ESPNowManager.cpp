@@ -66,10 +66,13 @@ bool wheelTxPending = false;
 PedalSensorFrame queuedPedalSensorFrame{};
 bool pedalSensorTxPending = false;
 HandbrakeSensorFrame queuedHandbrakeSensorFrame{};
+RpmLedFrame queuedRpmLedFrame{};
+bool rpmLedTxPending = false;
 bool handbrakeSensorTxPending = false;
 
 volatile bool txBusy = false;
 volatile bool txIsPedalSensorConfig = false;
+volatile bool txIsAuxiliary = false;
 
 //-----------------------------------------------------------------------------
 // Send at most one ESP-NOW packet at a time
@@ -137,6 +140,7 @@ void processTxQueue()
     {
         txBusy = true;
         txIsPedalSensorConfig = false;
+        txIsAuxiliary = true;
         const esp_err_t result = esp_now_send(RPM_LED_MAC,
             reinterpret_cast<const uint8_t*>(&queuedRpmLedFrame), sizeof(queuedRpmLedFrame));
         rpmLedTxPending = false;
@@ -493,7 +497,7 @@ static void onSent(
     // priority Wi-Fi task and also competes with the USB HID/CDC interface.
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        if (!txIsPedalSensorConfig) dashboardPacketsSent++;
+        if (!txIsPedalSensorConfig && !txIsAuxiliary) dashboardPacketsSent++;
     }
     else
     {
