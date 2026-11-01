@@ -147,6 +147,7 @@ class CarTelemetry:
     rev_lights_percent: int | None = None
     rev_lights_bits: int | None = None
     engine_temperature_c: int | None = None
+    brake_pressure: Wheels | None = None
     brakes_temperature_c: Wheels | None = None
     surface_type: Wheels | None = None
 
@@ -209,6 +210,8 @@ class TyreState:
     damage_percent: Wheels | None = None
     blisters_percent: Wheels | None = None
     surface_temperature_c: Wheels | None = None
+    # ACC reports tyre core temperature, not surface/inner/outer temperature.
+    core_temperature_c: Wheels | None = None
     inner_temperature_c: Wheels | None = None
     pressure_psi: Wheels | None = None
     sets: tuple[TyreSet, ...] = ()
