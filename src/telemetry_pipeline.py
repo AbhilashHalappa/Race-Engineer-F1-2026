@@ -52,7 +52,6 @@ class TelemetryFrame:
     suspension_travel: tuple | None = None
     car_damage: tuple | None = None
     clutch: float | None = None
-    current_lap_time_s: float | None = None
     session_time_left_s: float | None = None
     sector: int | None = None
     lap_valid: bool | None = None
