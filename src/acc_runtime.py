@@ -21,7 +21,7 @@ class ACCRuntimeStatus:
     rpm: int = 0
     throttle_percent: int = 0
     brake_percent: int = 0
-    fuel_l: float | None = None
+    fuel_kg: float | None = None
     fuel_percent: float | None = None
     flag_status: int = 0
     best_lap_time_ms: int | None = None
@@ -40,7 +40,7 @@ class ACCRuntime:
         self.engineer = AutomaticEngineer()
         self.status = ACCRuntimeStatus()
         self._active = False
-        self._fuel_start_l: float | None = None
+        self._fuel_start_kg: float | None = None
         self._fuel_start_lap: int | None = None
         self._last_lap = 0
         self._session_uid = 1
@@ -112,7 +112,7 @@ class ACCRuntime:
             self._fuel_start_lap = None
             self._last_lap = 0
 
-        fuel = getattr(telemetry, "fuel_l", None)
+        fuel = getattr(telemetry, "fuel_kg", None)
         lap = self.status.lap
         self._update_fuel_history(lap, fuel, now)
 
@@ -142,7 +142,7 @@ class ACCRuntime:
 
         fuel = float(fuel)
         if self._fuel_start_l is None:
-            self.status.fuel_l = fuel
+            self.status.fuel_kg = fuel
             self._fuel_start_l = fuel
             self._fuel_start_lap = lap
             self._last_lap = max(self._last_lap, lap)
@@ -155,7 +155,7 @@ class ACCRuntime:
                 per_lap = used / completed
                 self.status.history.append({
                     "lap": int(lap - 1),
-                    "fuel_used": per_lap,
+                    "fuel_used_kg": per_lap,
                     "at": now,
                 })
                 if len(self.status.history) > 32:
@@ -166,23 +166,23 @@ class ACCRuntime:
         self.status.fuel_l = fuel
 
     def _estimated_fuel_laps(self, fuel) -> float | None:
-        """Estimate remaining laps from ACC litres and learned litres-per-lap."""
+        """Estimate remaining laps from ACC fuel mass and learned kg-per-lap."""
         try:
-            remaining_l = float(fuel)
+            remaining_kg = float(fuel)
         except (TypeError, ValueError, OverflowError):
             return None
-        if remaining_l < 0:
+        if remaining_kg < 0:
             return None
         per_lap = self._learned_fuel_per_lap()
         if per_lap is None or per_lap <= 0:
             return None
-        return remaining_l / per_lap
+        return remaining_kg / per_lap
 
     def _learned_fuel_per_lap(self) -> float | None:
         usable = [
-            float(row["fuel_used"])
+            float(row["fuel_used_kg"])
             for row in self.status.history[-8:]
-            if isinstance(row.get("fuel_used"), (int, float)) and row["fuel_used"] > 0.05
+            if isinstance(row.get("fuel_used_kg"), (int, float)) and row["fuel_used_kg"] > 0.05
         ]
         return (sum(usable) / len(usable)) if usable else None
 
