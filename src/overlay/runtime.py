@@ -287,6 +287,7 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
     replay_thread = {"thread": None, "stop": None}
     mode = {"value": "live"}
     acc_reader_state = {"reader": None}
+    acc_runtime_state = {"runtime": None}
 
     def live_worker():
         try:
@@ -318,6 +319,10 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                     if old_reader is not None:
                         old_reader.close(wait=True)
                         acc_reader_state["reader"] = None
+                    old_acc_runtime = acc_runtime_state.get("runtime")
+                    if old_acc_runtime is not None:
+                        old_acc_runtime.stop()
+                        acc_runtime_state["runtime"] = None
 
                     from ..hardware_companion.models import WheelTelemetrySnapshot
                     receiver.wheel_bridge.update(WheelTelemetrySnapshot())
@@ -326,8 +331,36 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                     print(f"[PROFILE] Live game switch: {current_game or 'startup'} -> {desired}", flush=True)
 
                     if desired == "acc":
+                        from ..acc_runtime import ACCRuntime
                         from ..acc_telemetry import ACCSharedMemoryReader
-                        reader = ACCSharedMemoryReader(on_snapshot=receiver.wheel_bridge.update)
+                        from ..telemetry_pipeline import frame_from_acc, telemetry_pipeline
+
+                        acc_runtime = ACCRuntime()
+                        acc_runtime.start()
+                        acc_runtime_state["runtime"] = acc_runtime
+
+                        def on_acc_telemetry(live):
+                            runtime = acc_runtime_state.get("runtime")
+                            if runtime is None or receiver.telemetry_mode() != "acc":
+                                return
+                            runtime.update(live, now=getattr(live, "last_packet_monotonic", None))
+                            state = runtime.latest_state
+                            if state is not None:
+                                # ACC owns the common RaceState only while ACC is
+                                # selected. F1's native engine/update path is not
+                                # modified and resumes on the next live UDP packet.
+                                with receiver._state_lock:
+                                    if receiver.telemetry_mode() == "acc":
+                                        receiver.engine.state = state
+                            try:
+                                telemetry_pipeline.publish(frame_from_acc(live))
+                            except Exception as adapter_error:
+                                print(f"[ACC] Common telemetry adapter skipped: {adapter_error}", flush=True)
+
+                        reader = ACCSharedMemoryReader(
+                            on_snapshot=receiver.wheel_bridge.update,
+                            on_telemetry=on_acc_telemetry,
+                        )
                         acc_reader_state["reader"] = reader
                         reader.start()
                         print("[ACC] Shared Memory reader started; waiting for ACC physics packets", flush=True)
@@ -372,6 +405,10 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
             if reader is not None:
                 reader.close(wait=True)
                 acc_reader_state["reader"] = None
+            acc_runtime = acc_runtime_state.get("runtime")
+            if acc_runtime is not None:
+                acc_runtime.stop()
+                acc_runtime_state["runtime"] = None
 
     live_thread = threading.Thread(target=live_worker, name="race-engineer-overlay-live", daemon=True)
     live_thread.start()
