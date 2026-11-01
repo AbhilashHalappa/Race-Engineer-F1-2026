@@ -192,6 +192,14 @@ def decode_graphics_extended(data: bytes) -> dict:
     if len(data) < GRAPHICS_SIZE:
         raise ValueError(f"ACC graphics page too short: {len(data)} < {GRAPHICS_SIZE}")
     g = _Graphics.from_buffer_copy(data[:GRAPHICS_SIZE])
+    coords = tuple(
+        tuple(_finite(g.car_coordinates[i * 3 + axis]) for axis in range(3))
+        for i in range(max(0, min(60, int(g.active_cars))))
+    )
+    ids = tuple(int(g.car_ids[i]) for i in range(max(0, min(60, int(g.active_cars)))))
+    player_position = None
+    if int(g.player_car_id) in ids:
+        player_position = coords[ids.index(int(g.player_car_id))]
     return {
         "packet_id": int(g.packet_id), "status": int(g.status), "session": int(g.session),
         "current_time_ms": int(g.current_time_ms), "last_time_ms": int(g.last_time_ms),
@@ -202,6 +210,7 @@ def decode_graphics_extended(data: bytes) -> dict:
         "number_of_laps": int(g.number_of_laps), "tyre_compound": _wide(g.tyre_compound),
         "normalized_car_position": _finite(g.normalized_car_position),
         "active_cars": int(g.active_cars), "player_car_id": int(g.player_car_id),
+        "car_ids": ids, "car_coordinates": coords, "player_world_position": player_position,
         "penalty_time_s": _finite(g.penalty_time_s), "flag": int(g.flag),
         "penalty": int(g.penalty), "is_in_pit_lane": bool(g.is_in_pit_lane),
         "surface_grip": _finite(g.surface_grip), "mandatory_pit_done": bool(g.mandatory_pit_done),
