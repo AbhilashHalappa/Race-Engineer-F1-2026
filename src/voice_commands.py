@@ -661,12 +661,12 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
             value = data.get("best_lap_time_ms")
             return f"ACC session best lap {float(value) / 1000.0:.3f} seconds." if isinstance(value, (int, float)) and value > 0 else "ACC best lap time unavailable."
         if intent == VoiceIntent.FUEL_STATUS:
-            litres = data.get("fuel_l")
+            fuel_kg = data.get("fuel_kg")
             laps = car.fuel.remaining_laps
-            if isinstance(litres, (int, float)) and isinstance(laps, (int, float)):
-                return f"Fuel {litres:.1f} litres. Estimated {laps:.1f} laps remaining."
-            if isinstance(litres, (int, float)):
-                return f"Fuel {litres:.1f} litres remaining."
+            if isinstance(fuel_kg, (int, float)) and isinstance(laps, (int, float)):
+                return f"Fuel {fuel_kg:.1f} kilograms. Estimated {laps:.1f} laps remaining."
+            if isinstance(fuel_kg, (int, float)):
+                return f"Fuel {fuel_kg:.1f} kilograms remaining."
             return "ACC fuel data unavailable."
         if intent == VoiceIntent.FUEL_USED:
             used = data.get("used_fuel_l")
