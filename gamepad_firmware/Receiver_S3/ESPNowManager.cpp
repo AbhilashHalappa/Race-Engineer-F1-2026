@@ -120,6 +120,7 @@ void processTxQueue()
 
     txBusy = true;
     txIsPedalSensorConfig = false;
+    txIsAuxiliary = false;
     const esp_err_t result = esp_now_send(
         WHEEL_MAC,
         reinterpret_cast<const uint8_t*>(&packet),
@@ -140,6 +141,7 @@ void processTxQueue()
     {
         txBusy = true;
         txIsPedalSensorConfig = true;
+        txIsAuxiliary = false;
         const esp_err_t result = esp_now_send(
             PEDALS_MAC,
             reinterpret_cast<const uint8_t*>(&queuedPedalSensorFrame),
@@ -153,6 +155,7 @@ void processTxQueue()
     {
         txBusy = true;
         txIsPedalSensorConfig = true;
+        txIsAuxiliary = false;
         const esp_err_t result = esp_now_send(
             SHIFTER_MAC,
             reinterpret_cast<const uint8_t*>(&queuedHandbrakeSensorFrame),
@@ -505,6 +508,7 @@ static void onSent(
     }
 
     txIsPedalSensorConfig = false;
+    txIsAuxiliary = false;
     txBusy = false;
 }
 
