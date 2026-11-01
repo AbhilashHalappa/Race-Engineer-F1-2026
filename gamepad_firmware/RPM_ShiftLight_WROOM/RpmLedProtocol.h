@@ -30,3 +30,5 @@ inline bool rpmLedValidate(const RpmLedFrame& frame)
            frame.rpmPercent <= 100 &&
            frame.checksum == rpmLedChecksum(frame);
 }
+
+static_assert(sizeof(RpmLedFrame) == 8, "RPM LED frame must remain 8 bytes");
