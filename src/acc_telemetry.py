@@ -247,9 +247,9 @@ class ACCSharedMemoryReader:
         gear = max(-1, min(15, int(v.get("gear_raw") or 0) - 1))
         max_rpm = int((static or {}).get("max_rpm") or 0)
         rpm_percent = max(0, min(100, int(round(rpm * 100.0 / max_rpm)))) if max_rpm > 0 else 0
-        max_fuel = float((static or {}).get("max_fuel_l") or 0.0)
-        fuel_l = max(0.0, float(v.get("fuel_kg") or 0.0))
-        fuel_percent = round(max(0.0, min(100.0, fuel_l * 100.0 / max_fuel)), 1) if max_fuel > 0 else None
+        max_fuel_kg = float((static or {}).get("max_fuel_kg") or 0.0)
+        fuel_kg = max(0.0, float(v.get("fuel_kg") or 0.0))
+        fuel_percent = round(max(0.0, min(100.0, fuel_kg * 100.0 / max_fuel_kg)), 1) if max_fuel_kg > 0 else None
         if graphics:
             position = graphics["position"]
             completed_laps = graphics["completed_laps"]
