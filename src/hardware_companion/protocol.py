@@ -35,7 +35,7 @@ from .handbrake_sensor import (
 )
 from .pedal_curves import (
     PedalCurveSettings, RESPONSE_MAGIC as PEDAL_SETTINGS_MAGIC,
-    VERSION_V1 as PEDAL_SETTINGS_V1, VERSION_V2 as PEDAL_SETTINGS_V2, VERSION_V3 as PEDAL_SETTINGS_V3,
+    VERSION_V1 as PEDAL_SETTINGS_V1, VERSION_V2 as PEDAL_SETTINGS_V2, VERSION_V3 as PEDAL_SETTINGS_V3, VERSION_V4 as PEDAL_SETTINGS_V4,
     decode_response as decode_pedal_settings_response,
     response_frame_size_for_version as pedal_settings_frame_size_for_version,
     encode_command as encode_pedal_settings_command,
@@ -323,13 +323,14 @@ class ReceiverBridge:
     def request_pedal_settings(self, *, version: int | None = None) -> None:
         if version is None:
             with self._lock:
-                version = PEDAL_SETTINGS_V3 if self._health.handbrake_supported else (PEDAL_SETTINGS_V2 if self._health.clutch_supported else PEDAL_SETTINGS_V1)
+                version = (self._pedal_settings_protocol_version if self._pedal_settings_protocol_version >= PEDAL_SETTINGS_V4 else (PEDAL_SETTINGS_V3 if self._health.handbrake_supported else (PEDAL_SETTINGS_V2 if self._health.clutch_supported else PEDAL_SETTINGS_V1)))
         self._command_queue.put(encode_pedal_settings_command(CMD_REQUEST, version=version))
 
-    def apply_pedal_settings(self, settings: PedalCurveSettings, *, save: bool = False) -> None:
+    def apply_pedal_settings(self, settings: PedalCurveSettings, *, save: bool = False, version: int | None = None) -> None:
         command = CMD_SAVE if save else CMD_APPLY_VOLATILE
         with self._lock:
-            version = PEDAL_SETTINGS_V3 if self._health.handbrake_supported else (PEDAL_SETTINGS_V2 if self._health.clutch_supported else PEDAL_SETTINGS_V1)
+            if version is None:
+                version = self._pedal_settings_protocol_version if self._pedal_settings_protocol_version >= PEDAL_SETTINGS_V4 else (PEDAL_SETTINGS_V3 if self._health.handbrake_supported else (PEDAL_SETTINGS_V2 if self._health.clutch_supported else PEDAL_SETTINGS_V1))
         self._command_queue.put(encode_pedal_settings_command(command, settings, version=version))
 
     def reset_pedal_settings(self) -> None:
