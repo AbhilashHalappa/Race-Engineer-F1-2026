@@ -26,3 +26,19 @@ Open this folder as an Arduino sketch and select an ESP32-WROOM board. Flash `RP
 ## Receiver integration
 
 The S3 sends wheel dashboard packets first. The RPM LED packet is queued behind the wheel packet and ahead of low-rate sensor configuration traffic. It does not modify the wheel, pedal, handbrake, shifter, or MotorTemp payload formats.
+
+
+## OTA firmware updates
+
+The WROOM controller now uses the same temporary SoftAP + browser upload approach as the Pedals firmware.
+
+1. Power-cycle the controller to open its 60-second OTA connection window.
+2. Connect your PC to Wi-Fi **GamePadPro-RPM-LED-OTA** (password **GPRpmLedOTA8264**).
+3. Open **http://192.168.4.1/** and upload the compiled ESP32-WROOM `.bin` file.
+4. If the PC connects within the first 60 seconds, the OTA access point remains available while connected. The controller reboots after a successful upload.
+
+ESP-NOW and OTA share channel 1, as in the Pedals implementation. The OTA window closes after 60 seconds if no PC is connected; reboot the controller to reopen it.
+
+## Disconnected receiver / normal-light mode
+
+If no valid packet from the paired S3 Receiver has been received for 300 ms, all 60 LEDs turn solid white. This is also the power-up default until the receiver is detected. As soon as valid telemetry resumes, RPM sweep and shift flashing resume automatically.
