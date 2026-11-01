@@ -669,7 +669,9 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
             pad = data.get("brake_pad_life")
             disc = data.get("brake_disc_life")
             if isinstance(pad, (tuple, list)) or isinstance(disc, (tuple, list)):
-                return "Brake pad and disc life readings (FL, FR, RL, RR): pads " + (", ".join(f"{float(v):.1f}" for v in pad) if isinstance(pad, (tuple, list)) else "unavailable") + "; discs " + (", ".join(f"{float(v):.1f}" for v in disc) if isinstance(disc, (tuple, list)) else "unavailable") + "."
+                pad_values = [f"{float(v):.1f}" for v in pad if isinstance(v, (int, float))] if isinstance(pad, (tuple, list)) else []
+                disc_values = [f"{float(v):.1f}" for v in disc if isinstance(v, (int, float))] if isinstance(disc, (tuple, list)) else []
+                return "Brake pad and disc life readings (available FL, FR, RL, RR): pads " + (", ".join(pad_values) if pad_values else "unavailable") + "; discs " + (", ".join(disc_values) if disc_values else "unavailable") + "."
             return "Brake pad and disc life data unavailable."
         if intent == VoiceIntent.ENGINE_STATUS:
             running = data.get("engine_running")
