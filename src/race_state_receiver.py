@@ -212,6 +212,7 @@ class RaceStateReceiver(TelemetryReceiver):
         self._acc_session_uid = None
         self._acc_session_started_at = None
         self._acc_map_tracker = ACCRuntime()
+        self._acc_last_packet_at = None
 
 
     def _history_autosave_worker(self) -> None:
@@ -425,6 +426,7 @@ class RaceStateReceiver(TelemetryReceiver):
             self._telemetry_mode = mode
             self._replay_thread_id = replay_thread_id if mode == "replay" else None
         if mode != previous_mode:
+            self._acc_last_packet_at = None
             self._acc_session_signature = None
             self._acc_session_uid = None
             self._acc_session_started_at = None
@@ -454,6 +456,7 @@ class RaceStateReceiver(TelemetryReceiver):
         if not isinstance(stamp, (int, float)):
             stamp = time.monotonic()
         stamp = float(stamp)
+        self._acc_last_packet_at = stamp
         signature = (
             str(getattr(telemetry, "car", "") or ""),
             str(getattr(telemetry, "track", "") or ""),
