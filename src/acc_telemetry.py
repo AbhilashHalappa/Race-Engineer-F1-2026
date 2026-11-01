@@ -345,6 +345,8 @@ class ACCSharedMemoryReader:
                 gap_behind_ms=(graphics.get("gap_behind_ms") if graphics else None),
                 fuel_to_add_l=(graphics.get("mfd_fuel_to_add") if graphics else None),
                 current_tyre_set=(graphics.get("current_tyre_set") if graphics else None),
+                number_of_laps=(graphics.get("number_of_laps") if graphics else None),
+                player_name=(static.get("player_nickname") or " ".join(x for x in (static.get("player_name"), static.get("player_surname")) if x)) if static else "",
                 strategy_tyre_set=(graphics.get("strategy_tyre_set") if graphics else None),
                 exhaust_temperature_c=(graphics.get("exhaust_temp_c") if graphics else None),
                 engine_running=v.get("engine_running"),
