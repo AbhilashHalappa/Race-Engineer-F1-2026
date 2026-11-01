@@ -44,6 +44,7 @@ class ACCRuntime:
         self._fuel_start_lap: int | None = None
         self._last_lap = 0
         self._session_uid = 1
+        self._session_signature = None
         self.latest_state = None
 
     def start(self) -> None:
@@ -53,6 +54,7 @@ class ACCRuntime:
         self._fuel_start_l = None
         self._fuel_start_lap = None
         self._last_lap = 0
+        self._session_signature = None
         self.latest_state = None
 
     def stop(self) -> None:
@@ -92,6 +94,23 @@ class ACCRuntime:
         self.status.car = str(getattr(telemetry, "car", "") or "")
         self.status.track = str(getattr(telemetry, "track", "") or "")
         self.status.session = getattr(telemetry, "session", None)
+
+        signature = (
+            self.status.car,
+            self.status.track,
+            getattr(telemetry, "session_type", self.status.session),
+            getattr(telemetry, "session_index", None),
+        )
+        if self._session_signature is None:
+            self._session_signature = signature
+        elif signature != self._session_signature:
+            self._session_signature = signature
+            self._session_uid += 1
+            self.engineer.reset(self._session_uid)
+            self.status.history.clear()
+            self._fuel_start_l = None
+            self._fuel_start_lap = None
+            self._last_lap = 0
 
         fuel = getattr(telemetry, "fuel_l", None)
         lap = self.status.lap
