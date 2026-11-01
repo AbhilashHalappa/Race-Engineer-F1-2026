@@ -738,7 +738,7 @@ class HardwareWorkspace(QMainWindow):
         self.tabs.addTab(self.dashboard, "HARDWARE")
         self.tabs.addTab(self.curves, "INPUT CALIBRATION")
         self.tabs.addTab(self.input_tester, "INPUT TESTER")
-        self.sensor_setup = SensorConfigurationWidget(runtime, self.settings)
+        self.sensor_setup = SensorConfigurationWidget(self.runtime, self.settings)
         self.tabs.addTab(self.sensor_setup, "SENSOR SETUP")
         self._build_dashboard()
         self._build_curves()
