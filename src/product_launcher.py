@@ -52,7 +52,7 @@ def main() -> int:
         udp_port=s.udp_port,
         tts_enabled=s.tts_enabled,
         audio_device=s.audio_device,
-        overlay=(s.overlay_enabled or setup_requested),
+        overlay=(s.overlay_enabled or setup_requested or selected_game == "acc"),
         overlay_click_through=s.overlay_click_through,
         web_dash=s.web_dash_enabled,
         dash_host=s.dash_host,
