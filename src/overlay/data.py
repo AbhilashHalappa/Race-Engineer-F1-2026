@@ -2071,8 +2071,16 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         engine_es_wear_percent=getattr(getattr(player, "damage", None), "engine_wear_percent", {}).get("ES") if player is not None else None,
         engine_blown=getattr(getattr(player, "damage", None), "engine_blown", None) if player is not None else None,
         engine_seized=getattr(getattr(player, "damage", None), "engine_seized", None) if player is not None else None,
-        world_position_x=(float(getattr(motion_car, "m_worldPositionX")) if motion_car is not None and _num(getattr(motion_car, "m_worldPositionX", None)) else None),
-        world_position_z=(float(getattr(motion_car, "m_worldPositionZ")) if motion_car is not None and _num(getattr(motion_car, "m_worldPositionZ", None)) else None),
+        world_position_x=(
+            float(getattr(motion_car, "m_worldPositionX"))
+            if motion_car is not None and _num(getattr(motion_car, "m_worldPositionX", None))
+            else (float(extended.get("world_position_x")) if isinstance(extended, dict) and _num(extended.get("world_position_x")) else None)
+        ),
+        world_position_z=(
+            float(getattr(motion_car, "m_worldPositionZ"))
+            if motion_car is not None and _num(getattr(motion_car, "m_worldPositionZ", None))
+            else (float(extended.get("world_position_z")) if isinstance(extended, dict) and _num(extended.get("world_position_z")) else None)
+        ),
         session_uid=getattr(session, "uid", None) if session is not None else None,
         track_name=track_name,
         reference_map_distance_m=reference_map_distance,
