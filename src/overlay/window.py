@@ -5212,7 +5212,7 @@ class FuelOverlayWindow(DataOverlayWindow):
         else:
             self.fuel_bar.setValue(0)
             self.fuel_bar.setStyleSheet("QProgressBar{background:rgba(255,255,255,18);border:1px solid rgba(255,255,255,18);border-radius:4px;} QProgressBar::chunk{background:rgba(155,164,175,160);border-radius:4px;}")
-            self.mass.setText(f"Fuel mass {s.fuel_remaining_mass:.2f} kg" if s.fuel_remaining_mass is not None else "Fuel mass unavailable")
+            self.mass.setText((f"Fuel {s.fuel_l:.1f} L" if s.fuel_l is not None else "Fuel data unavailable") if getattr(s,"game_id","f1_26") == "acc" else (f"Fuel mass {s.fuel_remaining_mass:.2f} kg" if s.fuel_remaining_mass is not None else "Fuel mass unavailable"))
         rows=list(s.fuel_history)[-3:]
         metrics = []
         if rows:
