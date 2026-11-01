@@ -16,6 +16,7 @@ from .pedal_auto_calibration import PedalCalibrationCapture
 from .protocol import serial_ports
 from .settings import load_settings, save_settings
 from .models import LiveTelemetry
+from .sensor_config_ui import SensorConfigurationWidget
 
 
 try:
@@ -737,6 +738,8 @@ class HardwareWorkspace(QMainWindow):
         self.tabs.addTab(self.dashboard, "HARDWARE")
         self.tabs.addTab(self.curves, "INPUT CALIBRATION")
         self.tabs.addTab(self.input_tester, "INPUT TESTER")
+        self.sensor_setup = SensorConfigurationWidget(runtime, self.settings)
+        self.tabs.addTab(self.sensor_setup, "SENSOR SETUP")
         self._build_dashboard()
         self._build_curves()
 
@@ -1473,6 +1476,8 @@ class HardwareWorkspace(QMainWindow):
         q.style().polish(q)
 
     def _poll(self):
+        if hasattr(self, "sensor_setup"):
+            self.sensor_setup.poll()
         rt = self.runtime
         if not rt:
             return
