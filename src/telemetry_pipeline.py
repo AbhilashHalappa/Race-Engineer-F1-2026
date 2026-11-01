@@ -369,6 +369,14 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
 
     core_temps = wheel(getattr(telemetry, "tyre_core_temperatures_c", None))
     tyre_pressures = wheel(getattr(telemetry, "tyre_pressures_psi", None))
+    raw_damage = getattr(telemetry, "car_damage", None)
+    damage_values = (
+        tuple(number(value) for value in raw_damage)
+        if isinstance(raw_damage, (tuple, list)) and len(raw_damage) == 5
+        else None
+    )
+    if damage_values is not None and all(value is None for value in damage_values):
+        damage_values = None
     brake_temps = wheel(getattr(telemetry, "brake_temperatures_c", None))
     brake_pressure = wheel(getattr(telemetry, "brake_pressures", None))
     fuel_laps = number(getattr(telemetry, "fuel_estimated_laps", None))
@@ -425,7 +433,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
             pressure_psi=tyre_pressures,
             fitted_set_index=number(getattr(telemetry, "current_tyre_set", None), int),
         ),
-        damage=DamageState(),
+        damage=DamageState(acc_values=damage_values),
     )
 
     extended_fields = (
