@@ -6067,6 +6067,27 @@ class F1DashCanvas(QWidget):
         return cached
 
     def _paint_damage_page(self, p, s, w, h):
+        if getattr(s,"game_id","f1_26") == "acc":
+            self._page_header(p,w,h,"DAMAGE","ACC SHARED MEMORY • RAW DAMAGE / BRAKE LIFE")
+            def raw_cards(title, values, labels, y, height, decimals=2):
+                p.setPen(QColor(230,235,240))
+                p.setFont(QFont("Segoe UI",max(10,int(h*.021)),QFont.Bold))
+                p.drawText(QRectF(w*.035,y,w*.93,h*.030),Qt.AlignLeft|Qt.AlignVCenter,title)
+                gap=w*.018; count=len(labels); card_w=(w*.93-gap*(count-1))/count
+                top=y+h*.040
+                for index,label in enumerate(labels):
+                    value=values[index] if index<len(values) else None
+                    rect=QRectF(w*.035+index*(card_w+gap),top,card_w,height)
+                    p.setPen(QPen(QColor(44,58,70),1)); p.setBrush(QColor(9,14,20)); p.drawRoundedRect(rect,7,7)
+                    p.setPen(QColor(126,141,156)); p.setFont(QFont("Segoe UI",max(8,int(h*.016)),QFont.Bold))
+                    p.drawText(QRectF(rect.x()+4,rect.y()+4,rect.width()-8,rect.height()*.35),Qt.AlignCenter,label)
+                    p.setPen(QColor(235,239,243)); p.setFont(QFont("Segoe UI",max(13,int(h*.030)),QFont.Bold))
+                    shown=f"{float(value):.{decimals}f}" if isinstance(value,(int,float)) else "--"
+                    p.drawText(QRectF(rect.x()+4,rect.y()+rect.height()*.34,rect.width()-8,rect.height()*.60),Qt.AlignCenter,shown)
+            raw_cards("CAR DAMAGE • RAW ACC VALUES",tuple(getattr(s,"car_damage",()) or ()),("FRONT","REAR","LEFT","RIGHT","CENTRE"),h*.245,h*.105,3)
+            raw_cards("BRAKE PAD LIFE • RAW VALUES",tuple(getattr(s,"brake_pad_life",()) or ()),("FL","FR","RL","RR"),h*.475,h*.105,2)
+            raw_cards("BRAKE DISC LIFE • RAW VALUES",tuple(getattr(s,"brake_disc_life",()) or ()),("FL","FR","RL","RR"),h*.705,h*.105,2)
+            return
         self._page_header(p,w,h,"DAMAGE","CAR / AERO + POWER UNIT / HYBRID")
 
         def value_text(value, suffix="%", decimals=0):
