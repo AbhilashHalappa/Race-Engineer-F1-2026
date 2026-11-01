@@ -216,7 +216,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         current_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "current_lap_time_ms", None)),
         session_time_left_s=_optional_float(getattr(telemetry, "session_time_left_s", None)),
         sector=_optional_int(getattr(telemetry, "sector", None)),
-        lap_valid=getattr(telemetry, "lap_valid", None),
+        lap_valid=lap_valid,
         air_temperature_c=_optional_float(getattr(telemetry, "air_temperature_c", None)),
         track_temperature_c=_optional_float(getattr(telemetry, "track_temperature_c", None)),
         water_temperature_c=_optional_float(getattr(telemetry, "water_temperature_c", None)),
@@ -392,6 +392,13 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         session_time_s=None,
         weather=rain,
     )
+    raw_lap_valid = getattr(telemetry, "lap_valid", None)
+    if raw_lap_valid is not None:
+        parsed_lap_valid = number(raw_lap_valid, int)
+        lap_valid = bool(parsed_lap_valid) if parsed_lap_valid is not None else None
+    else:
+        lap_valid = None
+
     lap = LapState(
         position=position if position and position > 0 else None,
         current_lap=lap_number if lap_number and lap_number > 0 else None,
