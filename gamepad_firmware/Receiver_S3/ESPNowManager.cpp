@@ -21,6 +21,12 @@
 namespace
 {
 
+// RPM telemetry is broadcast so an absent LED controller cannot hold the
+// receiver's shared unicast TX slot waiting for an acknowledgement.
+constexpr uint8_t ESPNOW_BROADCAST_MAC[6] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+};
+
 //-----------------------------------------------------------------------------
 // Latest Received Data
 //-----------------------------------------------------------------------------
@@ -164,16 +170,14 @@ void processTxQueue()
         if (result != ESP_OK) { txBusy = false; txIsPedalSensorConfig = false; ++sendFailures; }
         return;
     }
-    // Lowest-priority telemetry: never delay wheel or sensor configuration TX.
+    // RPM is best-effort broadcast. Do not claim txBusy: the optional WROOM
+    // must never hold the wheel/dashboard unicast queue waiting for an ACK.
     if (rpmLedTxPending)
     {
-        txBusy = true;
-        txIsPedalSensorConfig = false;
-        txIsAuxiliary = true;
-        const esp_err_t result = esp_now_send(RPM_LED_MAC,
+        const esp_err_t result = esp_now_send(ESPNOW_BROADCAST_MAC,
             reinterpret_cast<const uint8_t*>(&queuedRpmLedFrame), sizeof(queuedRpmLedFrame));
         rpmLedTxPending = false;
-        if (result != ESP_OK) { txBusy = false; txIsAuxiliary = false; ++sendFailures; }
+        if (result != ESP_OK) ++sendFailures;
     }
 }
 
@@ -493,9 +497,17 @@ void onReceive(const esp_now_recv_info_t *info,
 //=============================================================================
 
 static void onSent(
-    const wifi_tx_info_t *,
+    const wifi_tx_info_t* txInfo,
     esp_now_send_status_t status)
 {
+    // Broadcast RPM frames are independent best-effort telemetry. Their send
+    // callback must not release or otherwise modify the shared unicast TX slot.
+    if (txInfo != nullptr &&
+        memcmp(txInfo->des_addr, ESPNOW_BROADCAST_MAC, 6) == 0)
+    {
+        return;
+    }
+
     // Keep the Wi-Fi callback short. Serial output here can block the high
     // priority Wi-Fi task and also competes with the USB HID/CDC interface.
     if (status == ESP_NOW_SEND_SUCCESS)
@@ -598,7 +610,7 @@ bool ESPNow::begin()
 
     // Handbrake configuration commands use the existing paired shifter C3.
     if (!addPeer(SHIFTER_MAC)) return false;
-    if (!addPeer(RPM_LED_MAC)) return false;
+    if (!addPeer(ESPNOW_BROADCAST_MAC)) return false;
 
     // Motor-temp C3 is TX-only toward the receiver; no peer add required for
     // RX. MAC is checked in validateSender via MOTOR_TEMP_MAC.
