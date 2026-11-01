@@ -41,7 +41,7 @@ class ACCRuntime:
         self.status = ACCRuntimeStatus()
         self._active = False
         self._fuel_start_kg: float | None = None
-        self._fuel_start_lap: int | None = None
+        self._fuel_start_kgap: int | None = None
         self._last_lap = 0
         self._session_uid = 1
         self._session_signature = None
@@ -51,8 +51,8 @@ class ACCRuntime:
         self._active = True
         self.status = ACCRuntimeStatus(active=True)
         self.engineer.reset(self._session_uid)
-        self._fuel_start_l = None
-        self._fuel_start_lap = None
+        self._fuel_start_kg = None
+        self._fuel_start_kgap = None
         self._last_lap = 0
         self._session_signature = None
         self.latest_state = None
@@ -108,8 +108,8 @@ class ACCRuntime:
             self._session_uid += 1
             self.engineer.reset(self._session_uid)
             self.status.history.clear()
-            self._fuel_start_l = None
-            self._fuel_start_lap = None
+            self._fuel_start_kg = None
+            self._fuel_start_kgap = None
             self._last_lap = 0
 
         fuel = getattr(telemetry, "fuel_kg", None)
@@ -141,16 +141,16 @@ class ACCRuntime:
             return
 
         fuel = float(fuel)
-        if self._fuel_start_l is None:
+        if self._fuel_start_kg is None:
             self.status.fuel_kg = fuel
-            self._fuel_start_l = fuel
-            self._fuel_start_lap = lap
+            self._fuel_start_kg = fuel
+            self._fuel_start_kgap = lap
             self._last_lap = max(self._last_lap, lap)
             return
 
-        if lap > (self._fuel_start_lap or 0):
-            completed = lap - int(self._fuel_start_lap or lap)
-            used = max(0.0, self._fuel_start_l - fuel)
+        if lap > (self._fuel_start_kgap or 0):
+            completed = lap - int(self._fuel_start_kgap or lap)
+            used = max(0.0, self._fuel_start_kg - fuel)
             if completed > 0 and used > 0.05:
                 per_lap = used / completed
                 self.status.history.append({
@@ -160,10 +160,10 @@ class ACCRuntime:
                 })
                 if len(self.status.history) > 32:
                     del self.status.history[:-32]
-            self._fuel_start_l = fuel
-            self._fuel_start_lap = lap
+            self._fuel_start_kg = fuel
+            self._fuel_start_kgap = lap
         self._last_lap = max(self._last_lap, lap)
-        self.status.fuel_l = fuel
+        self.status.fuel_kg = fuel
 
     def _estimated_fuel_laps(self, fuel) -> float | None:
         """Estimate remaining laps from ACC fuel mass and learned kg-per-lap."""
