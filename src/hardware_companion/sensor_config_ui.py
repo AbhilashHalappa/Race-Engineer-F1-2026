@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QIntValidator
@@ -167,14 +168,19 @@ class SensorConfigurationWidget(QWidget):
                 raise ValueError(f"{axis.title()} force must be 0.1 kg to cell capacity (1–1000 kg)")
             if not 1 <= counts <= 100000000 or not 1 <= divisor <= 255:
                 raise ValueError(f"{axis.title()} counts/filter are out of range")
-            setattr(cfg, f"{axis}_mode", mode)
-            setattr(cfg, f"{axis}_capacity_kg", capacity)
-            setattr(cfg, f"{axis}_max_force_kg", force)
-            setattr(cfg, f"{axis}_counts_per_kg", counts)
-            setattr(cfg, f"{axis}_filter_divisor", divisor)
             bit = {"throttle": 0, "brake": 1, "clutch": 2}[axis]
             flags = cfg.flags | (1 << bit) if f["invert"].isChecked() else cfg.flags & ~(1 << bit)
-            cfg = __import__("dataclasses").replace(cfg, flags=flags)
+            cfg = replace(
+                cfg,
+                **{
+                    f"{axis}_mode": mode,
+                    f"{axis}_capacity_kg": capacity,
+                    f"{axis}_max_force_kg": force,
+                    f"{axis}_counts_per_kg": counts,
+                    f"{axis}_filter_divisor": divisor,
+                    "flags": flags,
+                },
+            )
         return cfg
 
     def _persist_pedal_config(self, cfg):
