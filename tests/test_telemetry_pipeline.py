@@ -306,6 +306,9 @@ def test_acc_overlay_snapshot_uses_acc_common_state_without_f1_pit_advice():
         tyre_pressures_psi=(26.0, 26.1, 26.2, 26.3),
         air_temperature_c=22.0,
         track_temperature_c=30.0,
+        fuel_l=35.0,
+        max_fuel_l=100.0,
+        fuel_estimated_laps=8.5,
     )
     state = race_state_from_acc(live)
     snapshot = build_overlay_snapshot(state, None, connected=True)
@@ -314,4 +317,7 @@ def test_acc_overlay_snapshot_uses_acc_common_state_without_f1_pit_advice():
     assert snapshot.speed_kph == 190
     assert snapshot.tyre_core_temperatures_c == (80.0, 81.0, 82.0, 83.0)
     assert snapshot.tyre_pressures_psi == (26.0, 26.1, 26.2, 26.3)
+    assert snapshot.fuel_l == 35.0
+    assert snapshot.fuel_capacity == 100.0
+    assert snapshot.fuel_remaining_laps == 8.5
     assert snapshot.race_engineer.decision == "ACC STRATEGY NOT READY"
