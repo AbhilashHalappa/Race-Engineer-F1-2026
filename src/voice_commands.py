@@ -592,7 +592,7 @@ def _wheel_values(w: Wheels | None) -> list[float]:
     return [float(v) for v in (w.FL, w.FR, w.RL, w.RR) if v is not None]
 
 
-def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
+def answer_intent(intent: VoiceIntent, state: RaceState, request_text: str | None = None) -> str:
     car = state.player
     acc_mode = isinstance(getattr(state, "extended", None), dict) and state.extended.get("game_id") == "acc"
     if acc_mode and intent in (
@@ -691,6 +691,8 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
             return "ACC acceleration vector: " + ", ".join(f"{v:.2f}" for v in valid) + " G." if len(valid) == 3 else "G force data unavailable."
         if intent == VoiceIntent.DAMAGE:
             values = data.get("car_damage")
+            if not isinstance(values, (tuple, list)):
+                values = (data.get("acc_physics") or {}).get("car_damage")
             if isinstance(values, (tuple, list)) and len(values) == 5 and any(isinstance(v, (int, float)) for v in values):
                 labels = ("front", "rear", "left", "right", "centre")
                 return "ACC car damage values: " + ", ".join(f"{label} {float(value):.3f}" for label, value in zip(labels, values) if isinstance(value, (int, float))) + "."
@@ -1035,6 +1037,21 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
         core=getattr(car.tyres, "core_temperature_c", None)
         w=car.tyres.surface_temperature_c or core
         if not w: return "Tyre temperature data unavailable."
+        if acc_mode and request_text:
+            phrase = normalize_radio_text(request_text)
+            wheel_phrases = (
+                (("front left", "left front", "left-front", "front-left", "fl"), "FL", "left-front"),
+                (("front right", "right front", "right-front", "front-right", "fr"), "FR", "right-front"),
+                (("rear left", "left rear", "left-rear", "rear-left", "rl"), "RL", "left-rear"),
+                (("rear right", "right rear", "right-rear", "rear-right", "rr"), "RR", "right-rear"),
+            )
+            selected = next(((code, label) for phrases, code, label in wheel_phrases
+                             if any(re.search(rf"\\b{re.escape(term)}\\b", phrase) for term in phrases)), None)
+            if selected:
+                code, label = selected
+                value = getattr(w, code, None)
+                if value is not None:
+                    return f"{label.capitalize()} tyre core temperature {float(value):.0f} degrees."
         if intent == VoiceIntent.TYRE_TEMPERATURE_DETAIL:
             temp=_wheels(w, "degrees")
             label="Tyre core temperatures" if core is not None and car.tyres.surface_temperature_c is None else "Tyre temperatures"
@@ -1337,4 +1354,4 @@ def handle_voice_request(text: str, state: RaceState) -> VoiceResult:
     if coach is not None:
         return VoiceResult(VoiceIntent.PERFORMANCE_COMPARE, coach)
     intent = parse_intent(normalized)
-    return VoiceResult(intent, answer_intent(intent, state))
+    return VoiceResult(intent, answer_intent(intent, state, normalized))
