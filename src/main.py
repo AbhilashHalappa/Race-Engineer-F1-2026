@@ -72,48 +72,8 @@ def main(*, game="f1_26", host="0.0.0.0", udp_port=20777, show_sizes=False, pack
     if selected_game not in {"f1_26", "acc"}:
         print(f"Unsupported telemetry game: {selected_game}", file=sys.stderr)
         return 2
-    if selected_game == "acc":
-        if sys.platform != "win32":
-            print("ACC telemetry requires Windows Shared Memory.", file=sys.stderr)
-            return 1
-        from .acc_telemetry import ACCSharedMemoryReader
-        from .wheel_telemetry import WheelTelemetryBridge
-        bridge = WheelTelemetryBridge(enabled=wheel_telemetry, port=wheel_port)
-        reader = ACCSharedMemoryReader(on_snapshot=bridge.update)
-        print("=" * 60)
-        print("RACE ENGINEER — ACC TELEMETRY BRIDGE (STAGE 1)")
-        print("=" * 60)
-        print("Game        : Assetto Corsa Competizione")
-        print("Source      : ACC Shared Memory (Physics / Graphics / Static)")
-        print(f"Wheel link  : {'Disabled' if not wheel_telemetry else (wheel_port or 'Auto-detect receiver COM')}")
-        print("Coaching    : Not enabled for ACC in Stage 1")
-        print("Start ACC and enter a driving session. Press Ctrl+C to stop.")
-        try:
-            bridge.start()
-            reader.start()
-            last_error = None
-            last_report = 0.0
-            while True:
-                time.sleep(0.25)
-                live, _wheel = reader.snapshots()
-                error = reader.last_error
-                if error and error != last_error:
-                    print(f"[ACC] Waiting for Shared Memory: {error}", flush=True)
-                elif not error and live.total_packets and time.monotonic() - last_report >= 2.0:
-                    print(
-                        f"[ACC] Connected | {live.speed_kph:.0f} km/h | "
-                        f"Gear {live.gear} | {live.engine_rpm} rpm | "
-                        f"Throttle {live.throttle_percent}% | Brake {live.brake_percent}%",
-                        flush=True,
-                    )
-                    last_report = time.monotonic()
-                last_error = error
-        except KeyboardInterrupt:
-            print("\n[ACC] Stopping telemetry bridge...", flush=True)
-        finally:
-            reader.close(wait=True)
-            bridge.close(wait=True)
-        return 0
+    # ACC Stage 1 uses the same application shell and shared wheel bridge.
+    # The ACC reader is started by the overlay runtime; coaching remains F1-only.
     compiler_ok,compiler_info=_verify_reference_compiler_runtime()
     if not compiler_ok:
         print(f"REFERENCE COMPILER SELF-CHECK FAILED: {compiler_info}",file=sys.stderr)
@@ -179,7 +139,7 @@ def main(*, game="f1_26", host="0.0.0.0", udp_port=20777, show_sizes=False, pack
     try:
         if overlay:
             from .overlay.runtime import run_overlay
-            rc = run_overlay(receiver, replay_file=replay_file, replay_speed=replay_speed,
+            rc = run_overlay(receiver, game=selected_game, replay_file=replay_file, replay_speed=replay_speed,
                              replay_fast=replay_fast, click_through=overlay_click_through,
                              web_dash=web_dash, dash_host=dash_host, dash_port=dash_port)
             if replay_file and analysis_output:
