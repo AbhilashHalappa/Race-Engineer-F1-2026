@@ -83,6 +83,8 @@ class LiveTelemetry:
     lap_number: int = 0
     fuel_percent: float | None = None
     # ACC-only telemetry fields. Defaults keep every existing F1 caller intact.
+    fuel_kg: float | None = None
+    max_fuel_kg: float | None = None
     fuel_l: float | None = None
     max_fuel_l: float | None = None
     best_lap_time_ms: int | None = None
