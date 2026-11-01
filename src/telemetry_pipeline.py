@@ -346,7 +346,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
     )
     car = CarState(
         index=0,
-        identity=Identity(name=player_name or None),
+        identity=Identity(name=player_name or car_name or None),
         lap=lap,
         telemetry=CarTelemetry(
             speed_kph=number(getattr(telemetry, "speed_kph", None), int),
