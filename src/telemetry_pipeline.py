@@ -396,7 +396,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
             brakes_temperature_c=brake_temps,
             brake_pressure=brake_pressure,
         ),
-        fuel=FuelState(remaining_laps=fuel_laps),
+        fuel=FuelState(capacity=number(getattr(telemetry, "max_fuel_l", None)), remaining_laps=fuel_laps),
         tyres=TyreState(
             actual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
             visual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
@@ -408,7 +408,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
     )
 
     extended_fields = (
-        "fuel_l", "fuel_percent", "clutch_percent", "tyre_compound",
+        "fuel_l", "max_fuel_l", "fuel_percent", "clutch_percent", "tyre_compound",
         "tyre_pressures_psi", "tyre_core_temperatures_c", "tyre_dirty_level",
         "wheel_slip", "wheel_load", "wheel_angular_speed", "suspension_travel",
         "brake_temperatures_c", "brake_pressures", "brake_pad_life", "brake_disc_life",
