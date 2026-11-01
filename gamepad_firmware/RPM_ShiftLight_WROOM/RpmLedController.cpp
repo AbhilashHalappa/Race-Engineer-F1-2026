@@ -23,6 +23,9 @@ uint32_t colourForPosition(uint8_t positionPercent)
 
 void render(uint8_t rpm, bool shift, bool fresh)
 {
+    // Keep RPM/shift mode at its normal level, but make disconnected white
+    // lighting run at 80% brightness (204/255).
+    strip.setBrightness(fresh ? LED_BRIGHTNESS : DISCONNECTED_LED_BRIGHTNESS);
     strip.clear();
 
     // Fail-safe lighting mode: if the S3 receiver is absent or telemetry times out,
