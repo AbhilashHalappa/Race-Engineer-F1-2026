@@ -18,6 +18,21 @@ import time
 import queue
 
 from .models import WheelLinkHealth, WheelTelemetrySnapshot
+from .pedal_sensor import (
+    MAGIC_STATUS as PEDAL_SENSOR_STATUS_MAGIC,
+    FRAME_SIZE as PEDAL_SENSOR_FRAME_SIZE,
+    PedalSensorConfig, PedalSensorStatus, encode_command as encode_pedal_sensor_command,
+    decode_status_frame as decode_pedal_sensor_status,
+    CMD_GET_STATUS as PEDAL_CMD_GET_STATUS,
+)
+from .handbrake_sensor import (
+    MAGIC_STATUS as HANDBRAKE_SENSOR_STATUS_MAGIC,
+    FRAME_SIZE as HANDBRAKE_SENSOR_FRAME_SIZE,
+    HandbrakeSensorConfig, HandbrakeSensorStatus,
+    encode_command as encode_handbrake_sensor_command,
+    decode_status_frame as decode_handbrake_sensor_status,
+    CMD_GET_STATUS as HANDBRAKE_CMD_GET_STATUS,
+)
 from .pedal_curves import (
     PedalCurveSettings, RESPONSE_MAGIC as PEDAL_SETTINGS_MAGIC,
     VERSION_V1 as PEDAL_SETTINGS_V1, VERSION_V2 as PEDAL_SETTINGS_V2, VERSION_V3 as PEDAL_SETTINGS_V3,
@@ -267,6 +282,13 @@ class ReceiverBridge:
         self._pedal_settings_updated_monotonic: float | None = None
         self._pedal_settings_protocol_version = 0
         self._v2_pedal_settings_requested = False
+        self._pedal_sensor_status: PedalSensorStatus | None = None
+        self._pedal_sensor_updated_monotonic: float | None = None
+        self._pedal_sensor_sequence = 0
+        self._handbrake_sensor_status: HandbrakeSensorStatus | None = None
+        self._handbrake_sensor_updated_monotonic: float | None = None
+        self._handbrake_sensor_sequence = 0
+
 
     def update(self, snapshot: WheelTelemetrySnapshot) -> None:
         with self._lock:
@@ -314,6 +336,38 @@ class ReceiverBridge:
         with self._lock:
             version = PEDAL_SETTINGS_V3 if self._health.handbrake_supported else (PEDAL_SETTINGS_V2 if self._health.clutch_supported else PEDAL_SETTINGS_V1)
         self._command_queue.put(encode_pedal_settings_command(CMD_RESET_DEFAULTS, version=version))
+
+    def pedal_sensor_snapshot(self) -> tuple[PedalSensorStatus | None, float | None]:
+        with self._lock:
+            return self._pedal_sensor_status, self._pedal_sensor_updated_monotonic
+
+    def send_pedal_sensor_command(
+        self, command: int, config: PedalSensorConfig | None = None,
+        *, calibration_force_kg: float = 0.0,
+    ) -> None:
+        with self._lock:
+            sequence = self._pedal_sensor_sequence
+            self._pedal_sensor_sequence = (sequence + 1) & 0xFFFF
+        self._command_queue.put(encode_pedal_sensor_command(
+            command, config, sequence=sequence,
+            calibration_force_kg=calibration_force_kg,
+        ))
+
+    def request_pedal_sensor_status(self) -> None:
+        self.send_pedal_sensor_command(PEDAL_CMD_GET_STATUS)
+
+    def handbrake_sensor_snapshot(self) -> tuple[HandbrakeSensorStatus | None, float | None]:
+        with self._lock:
+            return self._handbrake_sensor_status, self._handbrake_sensor_updated_monotonic
+
+    def send_handbrake_sensor_command(self, command: int, config: HandbrakeSensorConfig | None = None, *, calibration_force_kg: float = 0.0) -> None:
+        with self._lock:
+            sequence = self._handbrake_sensor_sequence
+            self._handbrake_sensor_sequence = (sequence + 1) & 0xFFFF
+        self._command_queue.put(encode_handbrake_sensor_command(command, config, sequence=sequence, calibration_force_kg=calibration_force_kg))
+
+    def request_handbrake_sensor_status(self) -> None:
+        self.send_handbrake_sensor_command(HANDBRAKE_CMD_GET_STATUS)
 
     def health_snapshot(self) -> WheelLinkHealth:
         with self._lock:
@@ -616,11 +670,13 @@ class ReceiverBridge:
             status_pos = self._status_buffer.find(STATUS_MAGIC)
             live_pos = self._status_buffer.find(LIVE_MAGIC)
             pedal_pos = self._status_buffer.find(PEDAL_SETTINGS_MAGIC)
-            positions = [(pos, kind) for pos, kind in ((status_pos, "status"), (live_pos, "live"), (pedal_pos, "pedal_settings")) if pos >= 0]
+            sensor_pos = self._status_buffer.find(PEDAL_SENSOR_STATUS_MAGIC)
+            handbrake_sensor_pos = self._status_buffer.find(HANDBRAKE_SENSOR_STATUS_MAGIC)
+            positions = [(pos, kind) for pos, kind in ((status_pos, "status"), (live_pos, "live"), (pedal_pos, "pedal_settings"), (sensor_pos, "pedal_sensor"), (handbrake_sensor_pos, "handbrake_sensor")) if pos >= 0]
             if not positions:
                 # Keep a possible first magic byte across split serial reads.
                 tail = self._status_buffer[-1:] if self._status_buffer else b""
-                if tail in (STATUS_MAGIC[:1], LIVE_MAGIC[:1], PEDAL_SETTINGS_MAGIC[:1]):
+                if tail in (STATUS_MAGIC[:1], LIVE_MAGIC[:1], PEDAL_SETTINGS_MAGIC[:1], PEDAL_SENSOR_STATUS_MAGIC[:1], HANDBRAKE_SENSOR_STATUS_MAGIC[:1]):
                     self._status_buffer[:] = tail
                 else:
                     self._status_buffer.clear()
@@ -685,6 +741,44 @@ class ReceiverBridge:
                         last_error=self.last_error,
                         last_status_monotonic=now,
                     )
+                continue
+
+            if kind == "pedal_sensor":
+                if len(self._status_buffer) < 4:
+                    return
+                if self._status_buffer[2] != 2 or self._status_buffer[3] != 2:
+                    del self._status_buffer[0]
+                    continue
+                if len(self._status_buffer) < PEDAL_SENSOR_FRAME_SIZE:
+                    return
+                frame = bytes(self._status_buffer[:PEDAL_SENSOR_FRAME_SIZE])
+                decoded = decode_pedal_sensor_status(frame)
+                if decoded is None:
+                    del self._status_buffer[0]
+                    continue
+                del self._status_buffer[:PEDAL_SENSOR_FRAME_SIZE]
+                with self._lock:
+                    self._pedal_sensor_status = decoded
+                    self._pedal_sensor_updated_monotonic = time.monotonic()
+                continue
+
+            if kind == "handbrake_sensor":
+                if len(self._status_buffer) < 4:
+                    return
+                if self._status_buffer[2] != 1 or self._status_buffer[3] != 2:
+                    del self._status_buffer[0]
+                    continue
+                if len(self._status_buffer) < HANDBRAKE_SENSOR_FRAME_SIZE:
+                    return
+                frame = bytes(self._status_buffer[:HANDBRAKE_SENSOR_FRAME_SIZE])
+                decoded = decode_handbrake_sensor_status(frame)
+                if decoded is None:
+                    del self._status_buffer[0]
+                    continue
+                del self._status_buffer[:HANDBRAKE_SENSOR_FRAME_SIZE]
+                with self._lock:
+                    self._handbrake_sensor_status = decoded
+                    self._handbrake_sensor_updated_monotonic = time.monotonic()
                 continue
 
             if kind == "pedal_settings":
