@@ -82,6 +82,15 @@ class LiveTelemetry:
     position: int = 0
     lap_number: int = 0
     fuel_percent: float | None = None
+    # ACC-only telemetry fields. Defaults keep every existing F1 caller intact.
+    fuel_l: float | None = None
+    best_lap_time_ms: int | None = None
+    last_lap_time_ms: int | None = None
+    is_in_pit: bool = False
+    is_in_pit_lane: bool = False
+    car: str = ""
+    track: str = ""
+    session: int | None = None
     ers_percent: float | None = None
     ers_mode: int = 0
     flag_status: int = 0
