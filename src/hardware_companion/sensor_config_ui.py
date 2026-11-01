@@ -92,6 +92,41 @@ class SensorConfigurationWidget(QWidget):
         button.style().unpolish(button)
         button.style().polish(button)
 
+    def _axis_enable_toggled(self, axis: str, checked: bool, button: QPushButton) -> None:
+        """Save the axis enable flag through Receiver PC/PS; never fake it in the UI."""
+        receiver = getattr(self.runtime, "receiver", None)
+        if receiver is None:
+            button.blockSignals(True)
+            button.setChecked(not checked)
+            button.blockSignals(False)
+            self._update_enable_button(button, axis, not checked)
+            self.pedal_status.setText("Receiver is not available")
+            return
+
+        try:
+            current, supported, _stamp, version = receiver.pedal_settings_snapshot()
+            required = 4 if axis in ("throttle", "brake") else (3 if axis == "handbrake" else 2)
+            if not supported or version < required:
+                raise RuntimeError(
+                    f"{axis.title()} enable/disable requires Receiver PC/PS V{required}; "
+                    f"detected V{version if supported else 'unsupported'}"
+                )
+            updated = replace(current, **{f"{axis}_enabled": bool(checked)})
+            receiver.apply_pedal_settings(updated, save=True)
+            receiver.request_pedal_settings(version=required)
+            self.settings[f"{axis}_enabled"] = bool(checked)
+            save_settings(self.settings)
+            self._update_enable_button(button, axis, checked)
+            self.pedal_status.setText(
+                f"{axis.upper()} {'ENABLED' if checked else 'DISABLED'} · saving and verifying Receiver V{required}"
+            )
+        except Exception as exc:
+            button.blockSignals(True)
+            button.setChecked(not checked)
+            button.blockSignals(False)
+            self._update_enable_button(button, axis, not checked)
+            self.pedal_status.setText(f"Could not change {axis} output: {exc}")
+
     def _build_pedals(self):
         page = QWidget()
         layout = QVBoxLayout(page)
