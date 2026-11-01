@@ -133,6 +133,19 @@ class ACCRuntime:
         self._last_lap = max(self._last_lap, lap)
         self.status.fuel_l = fuel
 
+    def _estimated_fuel_laps(self, fuel) -> float | None:
+        """Estimate remaining laps from ACC litres and learned litres-per-lap."""
+        try:
+            remaining_l = float(fuel)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if remaining_l < 0:
+            return None
+        per_lap = self._learned_fuel_per_lap()
+        if per_lap is None or per_lap <= 0:
+            return None
+        return remaining_l / per_lap
+
     def _learned_fuel_per_lap(self) -> float | None:
         usable = [
             float(row["fuel_used"])
