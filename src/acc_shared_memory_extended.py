@@ -1,6 +1,6 @@
 """Extended ACC shared-memory field decoders.
 
-The existing Stage 1 reader is intentionally left untouched here.  These
+The existing Stage 1 reader is intentionally left untouched here. These
 small decoders provide the ACC session/engineering layer with documented
 physics and graphics fields without changing the protected F1 telemetry path.
 """
@@ -10,9 +10,6 @@ import math
 import struct
 
 
-# ACC/AC shared-memory physics fields.  The first 8 fields are the existing
-# reader's prefix; the following fields are fixed-width arrays from the
-# published shared-memory layout.
 PHYSICS_SIZE = 320
 GRAPHICS_SIZE = 1024
 STATIC_SIZE = 512
@@ -32,28 +29,30 @@ def _floats(data: bytes, offset: int, count: int) -> tuple[float, ...]:
 def decode_physics_extended(data: bytes) -> dict:
     if len(data) < 32:
         raise ValueError("ACC physics page is too short")
-    out = {}
-    out["velocity"] = _floats(data, 32, 3)
-    out["acc_g"] = _floats(data, 44, 3)
-    out["wheel_slip"] = _floats(data, 56, 4)
-    out["wheel_load"] = _floats(data, 72, 4)
-    out["wheel_pressure_psi"] = _floats(data, 88, 4)
-    out["wheel_angular_speed"] = _floats(data, 104, 4)
-    out["tyre_wear"] = _floats(data, 120, 4)
-    out["tyre_dirty_level"] = _floats(data, 136, 4)
-    out["tyre_core_temp_c"] = _floats(data, 152, 4)
-    out["camber_rad"] = _floats(data, 168, 4)
-    out["suspension_travel"] = _floats(data, 184, 4)
-    if len(data) >= 200:
-        out["tc"] = _finite(struct.unpack_from("<f", data, 196)[0])
+    out = {
+        "velocity": _floats(data, 32, 3),
+        "acc_g": _floats(data, 44, 3),
+        "wheel_slip": _floats(data, 56, 4),
+        "wheel_load": _floats(data, 72, 4),
+        "wheel_pressure_psi": _floats(data, 88, 4),
+        "wheel_angular_speed": _floats(data, 104, 4),
+        "tyre_wear": _floats(data, 120, 4),
+        "tyre_dirty_level": _floats(data, 136, 4),
+        "tyre_core_temp_c": _floats(data, 152, 4),
+        "camber_rad": _floats(data, 168, 4),
+        "suspension_travel": _floats(data, 184, 4),
+    }
+    # Fields after suspensionTravel in the published packed layout.
     if len(data) >= 204:
-        out["heading_rad"] = _finite(struct.unpack_from("<f", data, 200)[0])
-    if len(data) >= 208:
-        out["pitch_rad"] = _finite(struct.unpack_from("<f", data, 204)[0])
-    if len(data) >= 212:
-        out["roll_rad"] = _finite(struct.unpack_from("<f", data, 208)[0])
-    if len(data) >= 228:
-        out["abs"] = _finite(struct.unpack_from("<f", data, 224)[0])
+        out["drs"] = _finite(struct.unpack_from("<f", data, 200)[0])
+        out["tc"] = _finite(struct.unpack_from("<f", data, 204)[0])
+    if len(data) >= 216:
+        out["heading_rad"] = _finite(struct.unpack_from("<f", data, 208)[0])
+        out["pitch_rad"] = _finite(struct.unpack_from("<f", data, 212)[0])
+    if len(data) >= 220:
+        out["roll_rad"] = _finite(struct.unpack_from("<f", data, 216)[0])
+    if len(data) >= 248:
+        out["abs"] = _finite(struct.unpack_from("<f", data, 244)[0])
     return out
 
 
