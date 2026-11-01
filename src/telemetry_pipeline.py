@@ -327,6 +327,8 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
 
     session_type = enum(getattr(telemetry, "session_type", None), session_type_names)
     rain = enum(getattr(telemetry, "rain_intensity", None), rain_names)
+    raw_sector = number(getattr(telemetry, "sector", None), int)
+    sector = (raw_sector + 1) if raw_sector in (0, 1, 2) else raw_sector
     grip = enum(getattr(telemetry, "track_grip_status", None), grip_names)
     track_name = str(getattr(telemetry, "track", "") or "").strip()
     car_name = str(getattr(telemetry, "car", "") or "").strip()
@@ -370,12 +372,13 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         current_lap=lap_number if lap_number and lap_number > 0 else None,
         current_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "current_lap_time_ms", None)),
         previous_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
-        sector=number(getattr(telemetry, "sector", None), int),
+        sector=sector,
         lap_distance_m=number(lap_distance),
         lap_valid=getattr(telemetry, "lap_valid", None),
         total_distance_m=None,
         pit_status=pit_status,
         penalties_s=number(getattr(telemetry, "penalty_time_s", None), int),
+        gap_to_car_in_front_s=(number(getattr(telemetry, "gap_ahead_ms", None)) / 1000.0 if number(getattr(telemetry, "gap_ahead_ms", None)) is not None else None),
     )
     car = CarState(
         index=0,
@@ -399,6 +402,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
             visual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
             core_temperature_c=core_temps,
             pressure_psi=tyre_pressures,
+            fitted_set_index=number(getattr(telemetry, "current_tyre_set", None), int),
         ),
         damage=DamageState(),
     )
@@ -436,6 +440,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         session=session,
         player_index=0,
         player=car,
+        gap_behind_s=(number(getattr(telemetry, "gap_behind_ms", None)) / 1000.0 if number(getattr(telemetry, "gap_behind_ms", None)) is not None else None),
         extended=extended,
     )
 
