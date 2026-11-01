@@ -31,6 +31,8 @@ class TelemetryFrame:
     throttle: float | None = None
     brake: float | None = None
     steering: float | None = None
+    fuel_kg: float | None = None
+    fuel_capacity_kg: float | None = None
     fuel_l: float | None = None
     fuel_capacity_l: float | None = None
     fuel_remaining_laps: float | None = None
@@ -192,8 +194,8 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         throttle=_percent_fraction(getattr(telemetry, "throttle_percent", None)),
         brake=_percent_fraction(getattr(telemetry, "brake_percent", None)),
         steering=_signed_percent_fraction(getattr(telemetry, "steering_percent", None)),
-        fuel_l=_optional_float(getattr(telemetry, "fuel_l", None)),
-        fuel_capacity_l=_optional_float(getattr(telemetry, "max_fuel_l", None)),
+        fuel_kg=_optional_float(getattr(telemetry, "fuel_kg", None)),
+        fuel_capacity_kg=_optional_float(getattr(telemetry, "max_fuel_kg", None)),
         fuel_remaining_laps=_optional_float(getattr(telemetry, "fuel_estimated_laps", None)),
         last_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
         best_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "best_lap_time_ms", None)),
@@ -234,7 +236,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         rain_intensity_30min=_optional_int(getattr(telemetry, "rain_intensity_30min", None)),
         wind_speed_mps=_optional_float(getattr(telemetry, "wind_speed_mps", None)),
         extras=tuple((name, getattr(telemetry, name, None)) for name in (
-            "fuel_l", "max_fuel_l", "tyre_compound", "car", "track", "session", "penalty_type",
+            "fuel_kg", "max_fuel_kg", "tyre_compound", "car", "track", "session", "penalty_type",
             "brake_pad_life", "brake_disc_life", "turbo_boost", "used_fuel_l",
             "rain_tyres", "mandatory_pit_done", "missing_mandatory_pits",
             "driver_stint_left_ms", "driver_stint_total_ms", "gap_ahead_ms",
@@ -414,7 +416,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
             brakes_temperature_c=brake_temps,
             brake_pressure=brake_pressure,
         ),
-        fuel=FuelState(capacity=number(getattr(telemetry, "max_fuel_l", None)), remaining_laps=fuel_laps),
+        fuel=FuelState(remaining_mass=number(getattr(telemetry, "fuel_kg", None)), capacity=number(getattr(telemetry, "max_fuel_kg", None)), remaining_laps=fuel_laps),
         tyres=TyreState(
             actual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
             visual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
@@ -426,7 +428,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
     )
 
     extended_fields = (
-        "fuel_l", "max_fuel_l", "fuel_percent", "clutch_percent", "tyre_compound",
+        "fuel_kg", "max_fuel_kg", "fuel_percent", "clutch_percent", "tyre_compound",
         "tyre_pressures_psi", "tyre_core_temperatures_c", "tyre_dirty_level",
         "wheel_slip", "wheel_load", "wheel_angular_speed", "suspension_travel",
         "brake_temperatures_c", "brake_pressures", "brake_pad_life", "brake_disc_life",
