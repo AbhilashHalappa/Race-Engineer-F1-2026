@@ -343,19 +343,19 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                             runtime = acc_runtime_state.get("runtime")
                             if runtime is None or receiver.telemetry_mode() != "acc":
                                 return
-                            runtime.update(live, now=getattr(live, "last_packet_monotonic", None))
-                            state = runtime.latest_state
-                            if state is not None:
-                                # ACC owns the common RaceState only while ACC is
-                                # selected. F1's native engine/update path is not
-                                # modified and resumes on the next live UDP packet.
-                                with receiver._state_lock:
-                                    if receiver.telemetry_mode() == "acc":
-                                        receiver.engine.state = state
                             try:
+                                runtime.update(live, now=getattr(live, "last_packet_monotonic", None))
+                                state = runtime.latest_state
+                                if state is not None:
+                                    # ACC owns the common RaceState only while ACC is
+                                    # selected. F1's native engine/update path is not
+                                    # modified and resumes on the next live UDP packet.
+                                    with receiver._state_lock:
+                                        if receiver.telemetry_mode() == "acc":
+                                            receiver.engine.state = state
                                 telemetry_pipeline.publish(frame_from_acc(live))
                             except Exception as adapter_error:
-                                print(f"[ACC] Common telemetry adapter skipped: {adapter_error}", flush=True)
+                                print(f"[ACC] Race Engineer adapter skipped: {adapter_error}", flush=True)
 
                         reader = ACCSharedMemoryReader(
                             on_snapshot=receiver.wheel_bridge.update,
