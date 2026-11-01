@@ -918,11 +918,15 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
         return f"Tyre wear: FL {float(w.FL):.1f}, FR {float(w.FR):.1f}, RL {float(w.RL):.1f}, RR {float(w.RR):.1f} percent."
 
     if intent in (VoiceIntent.TYRE_TEMPERATURE, VoiceIntent.TYRE_TEMPERATURE_DETAIL):
-        w=car.tyres.surface_temperature_c
+        # ACC Shared Memory reports tyre core temperatures; F1 retains its
+        # native surface-temperature field and existing response wording.
+        core=getattr(car.tyres, "core_temperature_c", None)
+        w=car.tyres.surface_temperature_c or core
         if not w: return "Tyre temperature data unavailable."
         if intent == VoiceIntent.TYRE_TEMPERATURE_DETAIL:
             temp=_wheels(w, "degrees")
-            return f"Tyre temperatures: {temp}." if temp else "Tyre temperature data unavailable."
+            label="Tyre core temperatures" if core is not None and car.tyres.surface_temperature_c is None else "Tyre temperatures"
+            return f"{label}: {temp}." if temp else "Tyre temperature data unavailable."
         vals=[v for v in (w.FL,w.FR,w.RL,w.RR) if v is not None]
         if not vals: return "Tyre temperature data unavailable."
         mx=max(vals); mn=min(vals)
