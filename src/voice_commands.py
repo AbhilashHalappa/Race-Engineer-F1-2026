@@ -1046,7 +1046,7 @@ def answer_intent(intent: VoiceIntent, state: RaceState, request_text: str | Non
                 (("rear right", "right rear", "right-rear", "rear-right", "rr"), "RR", "right-rear"),
             )
             selected = next(((code, label) for phrases, code, label in wheel_phrases
-                             if any(re.search(rf"\\b{re.escape(term)}\\b", phrase) for term in phrases)), None)
+                             if any(re.search(rf"\b{re.escape(term)}\b", phrase) for term in phrases)), None)
             if selected:
                 code, label = selected
                 value = getattr(w, code, None)
