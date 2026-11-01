@@ -1976,7 +1976,7 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         lap_valid=getattr(lap, "lap_valid", None) if lap is not None else None,
         lap_time_s=None if session_finished else (getattr(lap, "current_lap_time_s", None) if lap is not None else None),
         lap_distance_m=lap_distance,
-        best_lap_time_s=reference.get("lap_time_s") if reference else None,
+        best_lap_time_s=(reference.get("lap_time_s") if reference else (float(extended.get("best_lap_time_ms")) / 1000.0 if isinstance(extended, dict) and _num(extended.get("best_lap_time_ms")) and extended.get("game_id") == "acc" else None)),
         reference_lap=reference.get("lap") if reference else None,
         live_delta_s=live_delta,
         reference_throttle=(max(0.0,min(1.0,float(ref_throttle))) if _num(ref_throttle) else None),
