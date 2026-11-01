@@ -35,6 +35,25 @@ class _NullReceiverBridge:
     def reset_pedal_settings(self):
         return None
 
+
+    def pedal_sensor_snapshot(self):
+        return None, None
+
+    def send_pedal_sensor_command(self, *_args, **_kwargs):
+        return None
+
+    def request_pedal_sensor_status(self):
+        return None
+
+    def handbrake_sensor_snapshot(self):
+        return None, None
+
+    def send_handbrake_sensor_command(self, *_args, **_kwargs):
+        return None
+
+    def request_handbrake_sensor_status(self):
+        return None
+
     def reconfigure_port(self, port):
         self.requested_port = str(port or "auto")
 
