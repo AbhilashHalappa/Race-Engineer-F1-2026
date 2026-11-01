@@ -2204,6 +2204,16 @@ class OverlayDataProvider:
             wheel_link_losses=int(getattr(health, "link_losses", 0) or 0),
         )
 
+    def _telemetry_connected(self, now: float) -> bool:
+        """Use freshness from the currently selected native telemetry source."""
+        mode_getter = getattr(self.receiver, "telemetry_mode", None)
+        mode = mode_getter() if callable(mode_getter) else "live"
+        if mode == "acc":
+            last_packet_at = getattr(self.receiver, "_acc_last_packet_at", None)
+        else:
+            last_packet_at = getattr(self.receiver, "last_packet_at", None)
+        return last_packet_at is not None and now - float(last_packet_at) < 3.0
+
     def input_snapshot(self) -> InputSnapshot:
         """Cheap high-frequency DI/RI snapshot used by the 10 ms sampler."""
         now = time.monotonic()
@@ -2213,8 +2223,7 @@ class OverlayDataProvider:
                 self.receiver.engine.state, self.receiver.engine.performance, connected=False
             )
         with lock:
-            last_packet_at = getattr(self.receiver, "last_packet_at", None)
-            connected = last_packet_at is not None and now - last_packet_at < 3.0
+            connected = self._telemetry_connected(now)
             return build_input_snapshot(
                 self.receiver.engine.state, self.receiver.engine.performance, connected=connected
             )
@@ -2231,8 +2240,7 @@ class OverlayDataProvider:
             )
             return self._runtime_status(snapshot)
         with lock:
-            last_packet_at = getattr(self.receiver, "last_packet_at", None)
-            connected = last_packet_at is not None and now - last_packet_at < 3.0
+            connected = self._telemetry_connected(now)
             snapshot = build_overlay_snapshot(
                 self.receiver.engine.state,
                 self.receiver.engine.performance,
