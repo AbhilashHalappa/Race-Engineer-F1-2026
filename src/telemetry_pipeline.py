@@ -159,15 +159,32 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
     raw_session = _optional_int(getattr(telemetry, "session_type", None))
     if raw_session is None:
         raw_session = _optional_int(getattr(telemetry, "session", None))
+    car_name = str(getattr(telemetry, "car", "") or "")
+    track_name = str(getattr(telemetry, "track", "") or "")
+    session_index = _optional_int(getattr(telemetry, "session_index", None))
+    session_id = str(getattr(telemetry, "session_uid", 0) or "")
+    if not session_id:
+        session_id = f"{track_name}:{session_index}:{raw_session}"
+    lap_distance = _optional_float(getattr(telemetry, "lap_distance_m", None))
+    normalized = _optional_float(getattr(telemetry, "normalized_car_position", None))
+    if lap_distance is None and track_name and normalized is not None:
+        try:
+            from .overlay.track_maps import get_track_map_distances
+            distances = get_track_map_distances(track_name) or ()
+            valid = [float(value) for value in distances if isinstance(value, (int, float)) and value >= 0]
+            if len(valid) >= 2 and max(valid) > 0:
+                lap_distance = max(0.0, min(1.0, normalized)) * max(valid)
+        except Exception:
+            pass
     return TelemetryFrame(
         game_id="acc", source=str(getattr(telemetry, "source", "ACC Shared Memory")),
         received_at=float(stamp),
-        session_id=str(getattr(telemetry, "session_uid", 0) or ""),
-        car=str(getattr(telemetry, "car", "") or ""),
-        track=str(getattr(telemetry, "track", "") or ""),
+        session_id=session_id,
+        car=car_name,
+        track=track_name,
         session_type=acc_session_names.get(raw_session, str(raw_session) if raw_session is not None else ""),
         lap=_optional_int(getattr(telemetry, "lap_number", None)),
-        lap_distance_m=_optional_float(getattr(telemetry, "lap_distance_m", None)),
+        lap_distance_m=lap_distance,
         position=_optional_int(getattr(telemetry, "position", None)),
         speed_kph=_optional_float(getattr(telemetry, "speed_kph", None)),
         gear=_optional_int(getattr(telemetry, "gear", None)),
