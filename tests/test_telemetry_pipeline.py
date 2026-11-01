@@ -175,7 +175,7 @@ def test_acc_adapter_maps_real_tyre_temperature_pressure_and_environment():
         throttle_percent=90,
         brake_percent=0,
         steering_percent=12,
-        fuel_l=35.0,
+        fuel_kg=35.0,
         fuel_estimated_laps=10.5,
         current_lap_time_ms=92345,
         last_lap_time_ms=91000,
@@ -209,6 +209,8 @@ def test_acc_adapter_maps_real_tyre_temperature_pressure_and_environment():
     assert state.session.air_temperature_c == 22
     assert state.session.track_temperature_c == 31
     assert state.player.fuel.remaining_laps == 10.5
+    assert state.player.fuel.remaining_mass == 35.0
+    assert state.player.fuel.mass_unit == "kg"
     assert state.extended["brake_bias"] == 0.54
     assert state.extended["tc_level"] == 3
 
@@ -229,7 +231,7 @@ def test_acc_common_frame_contains_extended_telemetry():
         track_temperature_c=30.0,
         water_temperature_c=90.0,
         fuel_estimated_laps=8.5,
-        max_fuel_l=120.0,
+        max_fuel_kg=120.0,
         tc_level=2,
         abs_level=3,
     )
@@ -242,7 +244,7 @@ def test_acc_common_frame_contains_extended_telemetry():
     assert frame.brake_temperatures_c == (500.0, 501.0, 502.0, 503.0)
     assert frame.current_lap_time_s == 90.0
     assert frame.fuel_remaining_laps == 8.5
-    assert frame.fuel_capacity_l == 120.0
+    assert frame.fuel_capacity_kg == 120.0
     assert frame.air_temperature_c == 21.0
 
 
@@ -307,7 +309,7 @@ def test_acc_overlay_snapshot_uses_acc_common_state_without_f1_pit_advice():
         air_temperature_c=22.0,
         track_temperature_c=30.0,
         fuel_l=35.0,
-        max_fuel_l=100.0,
+        max_fuel_kg=100.0,
         fuel_estimated_laps=8.5,
     )
     state = race_state_from_acc(live)
@@ -317,7 +319,7 @@ def test_acc_overlay_snapshot_uses_acc_common_state_without_f1_pit_advice():
     assert snapshot.speed_kph == 190
     assert snapshot.tyre_core_temperatures_c == (80.0, 81.0, 82.0, 83.0)
     assert snapshot.tyre_pressures_psi == (26.0, 26.1, 26.2, 26.3)
-    assert snapshot.fuel_l == 35.0
+    assert snapshot.fuel_kg == 35.0
     assert snapshot.fuel_capacity == 100.0
     assert snapshot.fuel_remaining_laps == 8.5
     assert snapshot.race_engineer.decision == "ACC STRATEGY NOT READY"
