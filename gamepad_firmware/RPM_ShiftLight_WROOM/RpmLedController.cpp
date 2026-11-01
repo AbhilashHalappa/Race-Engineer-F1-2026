@@ -23,10 +23,16 @@ uint32_t colourForPosition(uint8_t positionPercent)
 
 void render(uint8_t rpm, bool shift, bool fresh)
 {
-    if (!fresh) rpm = 0;
     strip.clear();
 
-    if (shift && fresh)
+    // Fail-safe lighting mode: if the S3 receiver is absent or telemetry times out,
+    // illuminate the entire strip white so it remains usable as a normal light.
+    if (!fresh)
+    {
+        for (uint8_t i = 0; i < LED_COUNT; ++i)
+            strip.setPixelColor(i, strip.Color(255, 255, 255));
+    }
+    else if (shift && fresh)
     {
         if (shiftFlashOn) {
             for (uint8_t i = 0; i < LED_COUNT; ++i) strip.setPixelColor(i, strip.Color(255, 255, 255));
