@@ -139,7 +139,7 @@ def install() -> None:
             print(f"Car: {live.car or '--'} | Track: {live.track or '--'} | "
                   f"Session: {live.session_type if live.session_type is not None else '--'} | "
                   f"Lap: {live.lap_number or '--'} | Position: {live.position or '--'}", flush=True)
-            print(f"Fuel: {live.fuel_l if live.fuel_l is not None else '--'} L | "
+            print(f"Fuel: {live.fuel_kg if live.fuel_kg is not None else '--'} kg | "
                   f"Air/Track: {live.air_temperature_c if live.air_temperature_c is not None else '--'} / "
                   f"{live.track_temperature_c if live.track_temperature_c is not None else '--'} C | "
                   f"Tyre core: {fmt(tyre_t, ' C')}", flush=True)
