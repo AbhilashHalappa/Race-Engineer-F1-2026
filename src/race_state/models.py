@@ -236,6 +236,9 @@ class DamageState:
     engine_blown: bool | None = None
     engine_seized: bool | None = None
     brakes_percent: Wheels | None = None
+    # ACC publishes five generic damage channels (front/rear/left/right/centre).
+    # Keep them separate from F1 component percentages; the units/semantics differ.
+    acc_values: tuple[float | None, ...] | None = None
 
 
 @dataclass(slots=True)
