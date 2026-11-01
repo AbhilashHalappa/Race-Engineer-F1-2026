@@ -1,7 +1,10 @@
 /******************************************************************************
  * GamePad Pro V8
- * Inputs.cpp — Ultra Lite digital former-analog buttons
+ * Inputs.cpp
+ *
+ * Wheel input manager
  ******************************************************************************/
+
 #include "Inputs.h"
 #include "Pins.h"
 #include "Config.h"
@@ -9,7 +12,9 @@
 static void scanButtonMatrix();
 static void scanEncoderMatrix();
 static void scanFormerAnalogButtons();
-namespace {
+
+namespace
+{
 WheelPayload wheel = {};
 uint16_t buttonMatrixState = 0;
 uint16_t encoderMatrixState = 0;
