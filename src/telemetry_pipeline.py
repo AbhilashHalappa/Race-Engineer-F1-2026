@@ -180,6 +180,73 @@ def frame_from_f1(state, *, now: float | None = None) -> TelemetryFrame | None:
     )
 
 
+
+def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
+    """Adapt ACC Shared Memory values into the existing RaceState consumer model.
+
+    Only ACC-observed values are populated. F1-only fields remain None/default,
+    so the protected AutomaticEngineer can safely apply its existing generic
+    lap, fuel, pit and driving-state rules without receiving invented data.
+    """
+    from .race_state.models import (
+        CarState, CarTelemetry, FuelState, Identity, LapState, RaceState,
+        SessionState,
+    )
+    from .telemetry.enums import EnumValue
+
+    def number(value, cast=float):
+        try:
+            result = cast(value)
+            return result
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    def fraction(value):
+        result = number(value)
+        if result is None:
+            return None
+        return max(0.0, min(1.0, result / 100.0))
+
+    lap_number = number(getattr(telemetry, "lap_number", None), int)
+    position = number(getattr(telemetry, "position", None), int)
+    pit_lane = bool(getattr(telemetry, "is_in_pit_lane", False))
+    in_pit = bool(getattr(telemetry, "is_in_pit", False))
+    pit_status = None
+    if pit_lane:
+        pit_status = EnumValue(1, "Pitting")
+    elif in_pit:
+        pit_status = EnumValue(2, "In pit area")
+
+    player = CarState(
+        index=0,
+        identity=Identity(name=str(getattr(telemetry, "car", "") or "") or None),
+        lap=LapState(
+            position=position if position and position > 0 else None,
+            current_lap=lap_number if lap_number and lap_number > 0 else None,
+            previous_lap_time_s=_milliseconds_to_seconds(
+                getattr(telemetry, "last_lap_time_ms", None)
+            ),
+            pit_status=pit_status,
+        ),
+        telemetry=CarTelemetry(
+            speed_kph=number(getattr(telemetry, "speed_kph", None), int),
+            throttle=fraction(getattr(telemetry, "throttle_percent", None)),
+            brake=fraction(getattr(telemetry, "brake_percent", None)),
+            steering=_signed_percent_fraction(getattr(telemetry, "steering_percent", None)),
+            gear=number(getattr(telemetry, "gear", None), int),
+            rpm=number(getattr(telemetry, "engine_rpm", None), int),
+        ),
+        fuel=FuelState(
+            # ACC fuel is litres; EA's remaining_mass is deliberately not reused.
+            remaining_laps=_optional_float(fuel_remaining_laps),
+        ),
+    )
+    return RaceState(
+        session=SessionState(uid=int(session_uid)),
+        player_index=0,
+        player=player,
+    )
+
 def _optional_float(value) -> Optional[float]:
     try:
         result = float(value)
