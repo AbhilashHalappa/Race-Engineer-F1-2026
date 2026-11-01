@@ -102,6 +102,6 @@ def test_acc_static_layout_decodes_car_track_and_player_identity():
     assert decoded["track"] == "monza"
     assert decoded["player_nickname"] == "Driver"
     assert decoded["max_rpm"] == 8500
-    assert decoded["max_fuel_l"] == 120.0
+    assert decoded["max_fuel_kg"] == 120.0
     assert decoded["pit_window_start"] == 10
     assert decoded["pit_window_end"] == 20
