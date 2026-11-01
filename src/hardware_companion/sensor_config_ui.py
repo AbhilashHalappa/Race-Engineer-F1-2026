@@ -149,9 +149,14 @@ class SensorConfigurationWidget(QWidget):
     def _mode_changed(self, axis):
         fields = self.pedal_fields[axis]
         load_cell = fields["mode"].currentData() == MODE_HX711
+        form = fields["mode"].parentWidget().layout()
         for key in ("capacity", "force", "counts", "filter", "known"):
-            fields[key].setEnabled(load_cell)
-        fields["invert"].setEnabled(True)
+            widget = fields[key]
+            widget.setVisible(load_cell)
+            label = form.labelForField(widget) if isinstance(form, QFormLayout) else None
+            if label is not None:
+                label.setVisible(load_cell)
+        fields["invert"].setVisible(True)
 
     def _pedal_config(self):
         cfg = PedalSensorConfig()
@@ -164,10 +169,11 @@ class SensorConfigurationWidget(QWidget):
             divisor = int(f["filter"].text())
             if not all(math.isfinite(v) for v in (capacity, force, counts)):
                 raise ValueError(f"{axis.title()} values must be finite")
-            if not 1 <= capacity <= 1000 or not 0.1 <= force <= capacity:
-                raise ValueError(f"{axis.title()} force must be 0.1 kg to cell capacity (1–1000 kg)")
-            if not 1 <= counts <= 100000000 or not 1 <= divisor <= 255:
-                raise ValueError(f"{axis.title()} counts/filter are out of range")
+            if mode == MODE_HX711:
+                if not 1 <= capacity <= 1000 or not 0.1 <= force <= capacity:
+                    raise ValueError(f"{axis.title()} force must be 0.1 kg to cell capacity (1–1000 kg)")
+                if not 1 <= counts <= 100000000 or not 1 <= divisor <= 255:
+                    raise ValueError(f"{axis.title()} counts/filter are out of range")
             bit = {"throttle": 0, "brake": 1, "clutch": 2}[axis]
             flags = cfg.flags | (1 << bit) if f["invert"].isChecked() else cfg.flags & ~(1 << bit)
             cfg = replace(
@@ -355,8 +361,13 @@ class SensorConfigurationWidget(QWidget):
 
     def _handbrake_mode_changed(self, *_):
         load_cell = self.hb_fields["mode"].currentData() == HB_MODE_HX711
+        form = self.hb_fields["mode"].parentWidget().layout()
         for key in ("capacity", "force", "counts", "filter", "known"):
-            self.hb_fields[key].setEnabled(load_cell)
+            widget = self.hb_fields[key]
+            widget.setVisible(load_cell)
+            label = form.labelForField(widget) if isinstance(form, QFormLayout) else None
+            if label is not None:
+                label.setVisible(load_cell)
 
     def _handbrake_config(self):
         f = self.hb_fields
@@ -366,8 +377,9 @@ class SensorConfigurationWidget(QWidget):
             max_force_kg=float(f["force"].text()), counts_per_kg=float(f["counts"].text()),
         )
         vals = (cfg.capacity_kg, cfg.max_force_kg, cfg.counts_per_kg)
-        if not all(math.isfinite(v) for v in vals) or not 1 <= cfg.capacity_kg <= 1000 or not 0.1 <= cfg.max_force_kg <= cfg.capacity_kg or cfg.counts_per_kg < 1 or not 1 <= cfg.filter_divisor <= 32:
-            raise ValueError("Check capacity, maximum force, counts/kg and filter values")
+        if cfg.mode == HB_MODE_HX711:
+            if not all(math.isfinite(v) for v in vals) or not 1 <= cfg.capacity_kg <= 1000 or not 0.1 <= cfg.max_force_kg <= cfg.capacity_kg or cfg.counts_per_kg < 1 or not 1 <= cfg.filter_divisor <= 32:
+                raise ValueError("Check capacity, maximum force, counts/kg and filter values")
         return cfg
 
     def _send_handbrake(self, command, cfg=None, force=0.0):
