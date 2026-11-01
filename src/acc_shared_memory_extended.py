@@ -256,7 +256,7 @@ def decode_static_extended(data: bytes) -> dict:
         "car_model": _wide(s.car_model), "track": _wide(s.track),
         "player_name": _wide(s.player_name), "player_surname": _wide(s.player_surname),
         "player_nickname": _wide(s.player_nickname), "sector_count": int(s.sector_count),
-        "max_rpm": int(s.max_rpm), "max_fuel_l": _finite(s.max_fuel_l),
+        "max_rpm": int(s.max_rpm), "max_fuel_kg": _finite(s.max_fuel_l),
         "penalties_enabled": bool(s.penalties_enabled), "aid_fuel_rate": _finite(s.aid_fuel_rate),
         "aid_tyre_rate": _finite(s.aid_tyre_rate), "aid_mechanical_damage": _finite(s.aid_mechanical_damage),
         "tyre_blankets": bool(s.tyre_blankets), "aid_stability": _finite(s.aid_stability),
