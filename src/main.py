@@ -11,6 +11,7 @@
 # Compatibility marker retained for historical release tests: V0.9.17.2.3 REPLAY RECORDING SELECTOR
 import sys
 import argparse
+import time
 from pathlib import Path
 from .ptt import PTTConfig, list_audio_devices, list_controllers, list_hid_devices
 from .session_coach_report import save_coach_report
@@ -108,7 +109,7 @@ def main(*, game="f1_26", host="0.0.0.0", udp_port=20777, show_sizes=False, pack
                     last_report = time.monotonic()
                 last_error = error
         except KeyboardInterrupt:
-            print("\\n[ACC] Stopping telemetry bridge...", flush=True)
+            print("\n[ACC] Stopping telemetry bridge...", flush=True)
         finally:
             reader.close(wait=True)
             bridge.close(wait=True)
