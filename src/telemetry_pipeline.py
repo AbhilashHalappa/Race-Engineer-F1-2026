@@ -150,12 +150,21 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
     stamp = now if now is not None else getattr(telemetry, "last_packet_monotonic", None)
     if stamp is None:
         stamp = time.monotonic()
+    acc_session_names = {
+        0: "Practice", 1: "Qualifying", 2: "Race", 3: "Hotlap",
+        4: "Time attack", 5: "Drift", 6: "Drag", 7: "Hotstint",
+        8: "Hotstint superpole",
+    }
+    raw_session = _optional_int(getattr(telemetry, "session_type", None))
+    if raw_session is None:
+        raw_session = _optional_int(getattr(telemetry, "session", None))
     return TelemetryFrame(
         game_id="acc", source=str(getattr(telemetry, "source", "ACC Shared Memory")),
         received_at=float(stamp),
+        session_id=str(getattr(telemetry, "session_uid", 0) or ""),
         car=str(getattr(telemetry, "car", "") or ""),
         track=str(getattr(telemetry, "track", "") or ""),
-        session_type=_enum_name(getattr(telemetry, "session", None)),
+        session_type=acc_session_names.get(raw_session, str(raw_session) if raw_session is not None else ""),
         lap=_optional_int(getattr(telemetry, "lap_number", None)),
         position=_optional_int(getattr(telemetry, "position", None)),
         speed_kph=_optional_float(getattr(telemetry, "speed_kph", None)),
@@ -171,6 +180,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         in_pit_lane=bool(getattr(telemetry, "is_in_pit_lane", False)),
         flag=_optional_int(getattr(telemetry, "flag_status", None)),
         tyre_pressures=_optional_tuple(getattr(telemetry, "tyre_pressures_psi", None)),
+        tyre_temperatures=_optional_tuple(getattr(telemetry, "tyre_core_temperatures_c", None)),
         tyre_core_temperatures_c=_optional_tuple(getattr(telemetry, "tyre_core_temperatures_c", None)),
         brake_temperatures_c=_optional_tuple(getattr(telemetry, "brake_temperatures_c", None)),
         brake_pressures=_optional_tuple(getattr(telemetry, "brake_pressures", None)),
