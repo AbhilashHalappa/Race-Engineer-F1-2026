@@ -12,6 +12,7 @@
 #include "Gamepad.h"
 #include "PedalSensorBridge.h"
 #include "HandbrakeSensorBridge.h"
+#include "RpmLedProtocol.h"
 
 //=============================================================================
 // Local Variables
@@ -131,6 +132,17 @@ void processTxQueue()
     }
 
     if (wheelTxPending && !network.wheel.connected) wheelTxPending = false;
+
+    if (rpmLedTxPending)
+    {
+        txBusy = true;
+        txIsPedalSensorConfig = false;
+        const esp_err_t result = esp_now_send(RPM_LED_MAC,
+            reinterpret_cast<const uint8_t*>(&queuedRpmLedFrame), sizeof(queuedRpmLedFrame));
+        rpmLedTxPending = false;
+        if (result != ESP_OK) { txBusy = false; ++sendFailures; }
+        return;
+    }
 
     if (pedalSensorTxPending)
     {
@@ -578,6 +590,7 @@ bool ESPNow::begin()
 
     // Handbrake configuration commands use the existing paired shifter C3.
     if (!addPeer(SHIFTER_MAC)) return false;
+    if (!addPeer(RPM_LED_MAC)) return false;
 
     // Motor-temp C3 is TX-only toward the receiver; no peer add required for
     // RX. MAC is checked in validateSender via MOTOR_TEMP_MAC.
@@ -714,6 +727,19 @@ bool ESPNow::sendHandbrakeSensorFrame(const HandbrakeSensorFrame& frame)
 }
 
 //=============================================================================
+bool ESPNow::sendRpmLed(uint8_t rpmPercent, uint8_t shiftLight)
+{
+    queuedRpmLedFrame.magic = RPM_LED_MAGIC;
+    queuedRpmLedFrame.version = RPM_LED_VERSION;
+    queuedRpmLedFrame.sequence = txSequence++;
+    queuedRpmLedFrame.rpmPercent = (rpmPercent > 100) ? 100 : rpmPercent;
+    queuedRpmLedFrame.shiftLight = shiftLight ? 1 : 0;
+    queuedRpmLedFrame.checksum = rpmLedChecksum(queuedRpmLedFrame);
+    rpmLedTxPending = true;
+    processTxQueue();
+    return true;
+}
+
 // Send Dashboard Packet
 //=============================================================================
 
