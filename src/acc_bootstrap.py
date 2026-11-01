@@ -228,13 +228,15 @@ def install() -> None:
             try:
                 # ACC and F1 now publish the same immutable frame contract.
                 telemetry_pipeline.publish(frame_from_acc(live, now=now))
-                messages = receiver.acc_runtime.update(live, now)
-                lock = getattr(receiver, "_state_lock", None)
-                if lock is not None:
-                    with lock:
+                try:
+                    messages = receiver.acc_runtime.update(live, now)
+                finally:
+                    lock = getattr(receiver, "_state_lock", None)
+                    if lock is not None:
+                        with lock:
+                            receiver.acc_common_state = receiver.acc_runtime.latest_state
+                    else:
                         receiver.acc_common_state = receiver.acc_runtime.latest_state
-                else:
-                    receiver.acc_common_state = receiver.acc_runtime.latest_state
                 if messages and receiver.speech.config.enabled:
                     receiver.speech.submit(messages)
                 self._acc_last_engineer_at = now
