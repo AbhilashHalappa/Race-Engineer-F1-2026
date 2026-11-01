@@ -113,7 +113,7 @@ class SensorConfigurationWidget(QWidget):
                 )
             updated = replace(current, **{f"{axis}_enabled": bool(checked)})
             receiver.apply_pedal_settings(updated, save=True)
-            receiver.request_pedal_settings(version=required)
+            receiver.request_pedal_settings(version=max(required, version))
             self.settings[f"{axis}_enabled"] = bool(checked)
             save_settings(self.settings)
             self._update_enable_button(button, axis, checked)
@@ -316,7 +316,33 @@ class SensorConfigurationWidget(QWidget):
 
     def poll(self):
         receiver = getattr(self.runtime, "receiver", None)
-        if receiver is None: return
+        if receiver is None:
+            return
+
+        # The Receiver is authoritative for output-enable state. Synchronize
+        # the controls from its latest PC/PS settings without emitting writes.
+        try:
+            curve_settings, supported, _curve_stamp, version = receiver.pedal_settings_snapshot()
+            if supported:
+                for axis in self.AXES:
+                    required = 4 if axis in ("throttle", "brake") else (3 if axis == "handbrake" else 2)
+                    if version < required:
+                        continue
+                    button = (
+                        self.hb_fields["enable"] if axis == "handbrake"
+                        else self.pedal_fields[axis]["enable"]
+                    )
+                    enabled = bool(getattr(curve_settings, f"{axis}_enabled"))
+                    if button.isChecked() != enabled:
+                        button.blockSignals(True)
+                        button.setChecked(enabled)
+                        button.blockSignals(False)
+                        self._update_enable_button(button, axis, enabled)
+                    self.settings[f"{axis}_enabled"] = enabled
+        except Exception:
+            # Sensor readback remains usable if the optional PC/PS query fails.
+            pass
+
         pedal_status, pedal_stamp = receiver.pedal_sensor_snapshot()
         if pedal_status is not None and pedal_stamp != self._pedal_stamp:
             self._pedal_stamp = pedal_stamp; self._apply_pedal_readback(pedal_status)
