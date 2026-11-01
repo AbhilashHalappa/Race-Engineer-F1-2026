@@ -13,6 +13,10 @@ DEFAULTS = {
     "handbrake_sensor_mode": "hall",
     "handbrake_load_cell_capacity_kg": 40.0,
     "handbrake_max_force_kg": 40.0,
+    "throttle_enabled": True,
+    "brake_enabled": True,
+    "clutch_enabled": False,
+    "handbrake_enabled": False,
 }
 
 
