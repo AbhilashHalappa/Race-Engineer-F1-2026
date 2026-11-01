@@ -627,6 +627,84 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
     ctx = build_event_context(state)
     metrics = ctx.metrics
 
+    acc = isinstance(getattr(state, "extended", None), dict) and state.extended.get("game_id") == "acc"
+    if acc:
+        data = state.extended
+        if intent == VoiceIntent.FUEL_STATUS:
+            litres = data.get("fuel_l")
+            laps = car.fuel.remaining_laps
+            if isinstance(litres, (int, float)) and isinstance(laps, (int, float)):
+                return f"Fuel {litres:.1f} litres. Estimated {laps:.1f} laps remaining."
+            if isinstance(litres, (int, float)):
+                return f"Fuel {litres:.1f} litres remaining."
+            return "ACC fuel data unavailable."
+        if intent == VoiceIntent.FUEL_USED:
+            used = data.get("used_fuel_l")
+            per_lap = data.get("fuel_per_lap")
+            parts = []
+            if isinstance(used, (int, float)): parts.append(f"{used:.1f} litres used since refuelling")
+            if isinstance(per_lap, (int, float)): parts.append(f"average {per_lap:.2f} litres per lap")
+            return "ACC fuel: " + ", ".join(parts) + "." if parts else "ACC fuel-use data unavailable."
+        if intent == VoiceIntent.BRAKE_BIAS:
+            value = data.get("brake_bias")
+            return f"Brake bias {float(value) * 100.0:.1f} percent front." if isinstance(value, (int, float)) else "Brake bias data unavailable."
+        if intent == VoiceIntent.BRAKE_PRESSURE:
+            values = data.get("brake_pressures")
+            return "Brake pressure (FL, FR, RL, RR): " + ", ".join(f"{float(v):.1f}" for v in values) + " ACC units." if isinstance(values, (tuple, list)) and len(values) == 4 and all(isinstance(v, (int, float)) for v in values) else "Brake pressure data unavailable."
+        if intent == VoiceIntent.WHEEL_SLIP:
+            values = data.get("wheel_slip")
+            valid = [abs(float(v)) for v in values if isinstance(v, (int, float))] if isinstance(values, (tuple, list)) else []
+            return f"Maximum wheel slip {max(valid):.3f}." if valid else "Wheel slip data unavailable."
+        if intent == VoiceIntent.G_FORCE:
+            values = data.get("g_force")
+            valid = [float(v) for v in values if isinstance(v, (int, float))] if isinstance(values, (tuple, list)) else []
+            return "ACC acceleration vector: " + ", ".join(f"{v:.2f}" for v in valid) + " G." if len(valid) == 3 else "G force data unavailable."
+        if intent == VoiceIntent.DAMAGE:
+            values = data.get("car_damage")
+            if isinstance(values, (tuple, list)) and len(values) == 5 and any(isinstance(v, (int, float)) for v in values):
+                labels = ("front", "rear", "left", "right", "centre")
+                return "ACC car damage values: " + ", ".join(f"{label} {float(value):.3f}" for label, value in zip(labels, values) if isinstance(value, (int, float))) + "."
+            return "ACC car damage data unavailable."
+        if intent == VoiceIntent.BRAKE_DAMAGE:
+            pad = data.get("brake_pad_life")
+            disc = data.get("brake_disc_life")
+            if isinstance(pad, (tuple, list)) or isinstance(disc, (tuple, list)):
+                return "Brake pad and disc life readings (FL, FR, RL, RR): pads " + (", ".join(f"{float(v):.1f}" for v in pad) if isinstance(pad, (tuple, list)) else "unavailable") + "; discs " + (", ".join(f"{float(v):.1f}" for v in disc) if isinstance(disc, (tuple, list)) else "unavailable") + "."
+            return "Brake pad and disc life data unavailable."
+        if intent == VoiceIntent.ENGINE_STATUS:
+            running = data.get("engine_running")
+            if isinstance(running, bool):
+                return "Engine running." if running else "Engine stopped."
+        if intent == VoiceIntent.WEATHER:
+            rain = data.get("rain_name") or "unknown"
+            grip = data.get("track_grip_name") or "unknown"
+            return f"Current ACC conditions: {rain} rain, {grip} track grip."
+        if intent == VoiceIntent.RAIN_CHANCE:
+            names = {0: "no rain", 1: "drizzle", 2: "light rain", 3: "medium rain", 4: "heavy rain", 5: "thunderstorm"}
+            current = names.get(data.get("rain_intensity"), "unknown")
+            ten = names.get(data.get("rain_intensity_10min"), "unknown")
+            thirty = names.get(data.get("rain_intensity_30min"), "unknown")
+            return f"Rain intensity: now {current}, in 10 minutes {ten}, in 30 minutes {thirty}. ACC provides intensity categories, not a rain probability."
+        if intent == VoiceIntent.PIT_STOPS:
+            missing = data.get("missing_mandatory_pits")
+            done = data.get("mandatory_pit_done")
+            if isinstance(missing, int):
+                return f"{missing} mandatory pit stops remaining."
+            if isinstance(done, bool):
+                return "Mandatory pit stop completed." if done else "Mandatory pit stop not completed."
+        if intent == VoiceIntent.RACE_CONTROL:
+            flags = {0: "no flag", 1: "blue", 2: "yellow", 3: "black", 4: "white", 5: "chequered", 6: "penalty", 7: "green", 8: "orange"}
+            return f"ACC flag: {flags.get(data.get('flag_status'), 'unknown')}."
+        if intent == VoiceIntent.SETUP:
+            parts = []
+            for label, key in (("TC", "tc_level"), ("TC cut", "tc_cut"), ("ABS", "abs_level"), ("engine map", "engine_map")):
+                if isinstance(data.get(key), (int, float)): parts.append(f"{label} {data[key]}")
+            if isinstance(data.get("brake_bias"), (int, float)): parts.append(f"brake bias {float(data['brake_bias']) * 100.0:.1f} percent")
+            return "ACC settings: " + ", ".join(parts) + "." if parts else "ACC setup telemetry unavailable."
+        if intent == VoiceIntent.TYRE_SET:
+            value = data.get("current_tyre_set")
+            return f"Current tyre set {value}." if isinstance(value, int) else "Current tyre set unavailable."
+
     if intent in (VoiceIntent.PERFORMANCE_COMPARE, VoiceIntent.BRAKING_COMPARE, VoiceIntent.TRACTION_COMPARE, VoiceIntent.DRIVING_ISSUES):
         from .measured_performance import radio_summary
         topic = {VoiceIntent.BRAKING_COMPARE:'braking', VoiceIntent.TRACTION_COMPARE:'traction', VoiceIntent.DRIVING_ISSUES:'issues'}.get(intent, 'compare')
