@@ -30,6 +30,9 @@ constexpr uint8_t PEDALS_MAC[6] =
     0x8C, 0x94, 0xDF, 0x46, 0x74, 0xF8
 };
 
+// Independent ESP32-WROOM RPM shift-light controller
+constexpr uint8_t RPM_LED_MAC[6] = { 0xA0, 0xB7, 0x65, 0xDD, 0x85, 0x04 };
+
 // Motor-temp ESP32-C3 (10K NTC) — set to your C3 STA MAC
 constexpr uint8_t MOTOR_TEMP_MAC[6] =
 {
