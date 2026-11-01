@@ -150,6 +150,8 @@ class LiveTelemetry:
     gap_behind_ms: int | None = None
     fuel_to_add_l: float | None = None
     current_tyre_set: int | None = None
+    number_of_laps: int | None = None
+    player_name: str = ""
     strategy_tyre_set: int | None = None
     exhaust_temperature_c: float | None = None
     engine_running: bool | None = None
