@@ -1774,6 +1774,7 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
     profile = event_context.get("profile") if isinstance(event_context, dict) else None
     session = getattr(state, "session", None)
     session_finished = _session_finished(state)
+    extended = getattr(state, "extended", None)
     track_name = _enum_name(getattr(session, "track", None)) if session is not None else None
     is_acc_state = isinstance(extended, dict) and extended.get("game_id") == "acc"
     map_track_name = f"ACC {track_name}" if is_acc_state and track_name else track_name
