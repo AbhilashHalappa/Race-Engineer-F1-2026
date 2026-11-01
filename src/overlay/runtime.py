@@ -344,7 +344,7 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                             if runtime is None or receiver.telemetry_mode() != "acc":
                                 return
                             try:
-                                runtime.update(live, now=getattr(live, "last_packet_monotonic", None))
+                                messages = runtime.update(live, now=getattr(live, "last_packet_monotonic", None))
                                 state = runtime.latest_state
                                 if state is not None:
                                     # ACC owns the common RaceState only while ACC is
@@ -353,6 +353,8 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                                     with receiver._state_lock:
                                         if receiver.telemetry_mode() == "acc":
                                             receiver.engine.state = state
+                                if messages:
+                                    receiver._submit_radio(messages)
                                 telemetry_pipeline.publish(frame_from_acc(live))
                             except Exception as adapter_error:
                                 print(f"[ACC] Race Engineer adapter skipped: {adapter_error}", flush=True)
