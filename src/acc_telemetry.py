@@ -382,6 +382,11 @@ class ACCSharedMemoryReader:
                 lights_stage=(graphics.get("lights_stage") if graphics else None),
                 wiper_level=(graphics.get("wiper_level") if graphics else None),
                 track_configuration=(static.get("track_configuration", "") if static else ""),
+                acc_native=(
+                    ("physics", tuple(v.items())),
+                    ("graphics", tuple(graphics.items()) if graphics else ()),
+                    ("static", tuple(static.items()) if static else ()),
+                ),
                 car=(static.get("car_model", "") if static else ""),
                 track=(static.get("track", "") if static else ""),
             )
