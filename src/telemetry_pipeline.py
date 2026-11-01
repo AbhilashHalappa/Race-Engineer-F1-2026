@@ -23,6 +23,7 @@ class TelemetryFrame:
     track: str = ""
     session_type: str = ""
     lap: int | None = None
+    lap_distance_m: float | None = None
     position: int | None = None
     speed_kph: float | None = None
     gear: int | None = None
@@ -166,6 +167,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         track=str(getattr(telemetry, "track", "") or ""),
         session_type=acc_session_names.get(raw_session, str(raw_session) if raw_session is not None else ""),
         lap=_optional_int(getattr(telemetry, "lap_number", None)),
+        lap_distance_m=_optional_float(getattr(telemetry, "lap_distance_m", None)),
         position=_optional_int(getattr(telemetry, "position", None)),
         speed_kph=_optional_float(getattr(telemetry, "speed_kph", None)),
         gear=_optional_int(getattr(telemetry, "gear", None)),
@@ -329,6 +331,19 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
     track_name = str(getattr(telemetry, "track", "") or "").strip()
     car_name = str(getattr(telemetry, "car", "") or "").strip()
     player_name = str(getattr(telemetry, "player_name", "") or "").strip()
+    normalized_position = number(getattr(telemetry, "normalized_car_position", None))
+    track_length = None
+    lap_distance = None
+    if track_name and normalized_position is not None:
+        try:
+            from .overlay.track_maps import get_track_map_distances
+            distances = get_track_map_distances(track_name) or ()
+            valid_distances = [float(v) for v in distances if isinstance(v, (int, float)) and v >= 0]
+            if len(valid_distances) >= 2 and max(valid_distances) > 0:
+                track_length = max(valid_distances)
+                lap_distance = max(0.0, min(1.0, normalized_position)) * track_length
+        except Exception:
+            pass
 
     core_temps = wheel(getattr(telemetry, "tyre_core_temperatures_c", None))
     tyre_pressures = wheel(getattr(telemetry, "tyre_pressures_psi", None))
@@ -346,6 +361,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         air_temperature_c=number(getattr(telemetry, "air_temperature_c", None), int),
         time_left_s=number(getattr(telemetry, "session_time_left_s", None), int),
         total_laps=number(getattr(telemetry, "number_of_laps", None), int),
+        track_length_m=number(track_length),
         session_time_s=None,
         weather=rain,
     )
@@ -355,6 +371,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         current_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "current_lap_time_ms", None)),
         previous_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
         sector=number(getattr(telemetry, "sector", None), int),
+        lap_distance_m=number(lap_distance),
         lap_valid=getattr(telemetry, "lap_valid", None),
         total_distance_m=None,
         pit_status=pit_status,
@@ -401,7 +418,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         "gap_ahead_ms", "gap_behind_ms", "fuel_to_add_l", "current_tyre_set",
         "strategy_tyre_set", "exhaust_temperature_c", "engine_running", "ignition_on",
         "is_ai_controlled", "g_force", "local_velocity", "local_angular_velocity",
-        "session_time_left_s", "normalized_car_position", "lap_valid", "sector",
+        "session_time_left_s", "normalized_car_position", "lap_distance_m", "lap_valid", "sector",
         "current_lap_time_ms", "session_type", "number_of_laps", "position", "lap_number",
     )
     extended = {
