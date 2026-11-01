@@ -409,7 +409,7 @@ class RaceStateReceiver(TelemetryReceiver):
 
     def set_telemetry_mode(self, mode: str, *, replay_thread_id=None) -> None:
         mode = str(mode).lower()
-        if mode not in {"live", "replay"}:
+        if mode not in {"live", "replay", "acc"}:
             raise ValueError(f"Unsupported telemetry mode: {mode}")
         with self._runtime_lock:
             self._telemetry_mode = mode
@@ -1406,6 +1406,10 @@ class RaceStateReceiver(TelemetryReceiver):
             mode = self._telemetry_mode
             replay_tid = self._replay_thread_id
         replay_packet = replay_tid is not None and tid == replay_tid
+        if mode == "acc":
+            # ACC Shared Memory is active. Keep the F1 UDP socket bound for an
+            # instant switch, but do not let F1 packets mutate live game state.
+            return
         if mode == "replay" and not replay_packet:
             return
         if mode == "live" and replay_packet:
