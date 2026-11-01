@@ -41,6 +41,37 @@ class TelemetryFrame:
     tyre_pressures: tuple | None = None
     tyre_temperatures: tuple | None = None
     tyre_wear: tuple | None = None
+    tyre_core_temperatures_c: tuple | None = None
+    brake_temperatures_c: tuple | None = None
+    brake_pressures: tuple | None = None
+    wheel_slip: tuple | None = None
+    wheel_load: tuple | None = None
+    wheel_angular_speed: tuple | None = None
+    suspension_travel: tuple | None = None
+    car_damage: tuple | None = None
+    clutch: float | None = None
+    current_lap_time_s: float | None = None
+    session_time_left_s: float | None = None
+    sector: int | None = None
+    lap_valid: bool | None = None
+    air_temperature_c: float | None = None
+    track_temperature_c: float | None = None
+    water_temperature_c: float | None = None
+    brake_bias: float | None = None
+    tc_level: int | None = None
+    tc_cut: int | None = None
+    abs_level: int | None = None
+    engine_map: int | None = None
+    pit_limiter_on: bool | None = None
+    penalty_time_s: float | None = None
+    fuel_per_lap: float | None = None
+    fuel_estimated_laps: float | None = None
+    track_status: str | None = None
+    track_grip_status: int | None = None
+    rain_intensity: int | None = None
+    rain_intensity_10min: int | None = None
+    rain_intensity_30min: int | None = None
+    wind_speed_mps: float | None = None
     extras: tuple = ()
 
 
@@ -139,6 +170,47 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         in_pit=bool(getattr(telemetry, "is_in_pit", False)),
         in_pit_lane=bool(getattr(telemetry, "is_in_pit_lane", False)),
         flag=_optional_int(getattr(telemetry, "flag_status", None)),
+        tyre_pressures=_optional_tuple(getattr(telemetry, "tyre_pressures_psi", None)),
+        tyre_core_temperatures_c=_optional_tuple(getattr(telemetry, "tyre_core_temperatures_c", None)),
+        brake_temperatures_c=_optional_tuple(getattr(telemetry, "brake_temperatures_c", None)),
+        brake_pressures=_optional_tuple(getattr(telemetry, "brake_pressures", None)),
+        wheel_slip=_optional_tuple(getattr(telemetry, "wheel_slip", None)),
+        wheel_load=_optional_tuple(getattr(telemetry, "wheel_load", None)),
+        wheel_angular_speed=_optional_tuple(getattr(telemetry, "wheel_angular_speed", None)),
+        suspension_travel=_optional_tuple(getattr(telemetry, "suspension_travel", None)),
+        car_damage=_optional_tuple(getattr(telemetry, "car_damage", None)),
+        clutch=_percent_fraction(getattr(telemetry, "clutch_percent", None)),
+        current_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "current_lap_time_ms", None)),
+        session_time_left_s=_optional_float(getattr(telemetry, "session_time_left_s", None)),
+        sector=_optional_int(getattr(telemetry, "sector", None)),
+        lap_valid=getattr(telemetry, "lap_valid", None),
+        air_temperature_c=_optional_float(getattr(telemetry, "air_temperature_c", None)),
+        track_temperature_c=_optional_float(getattr(telemetry, "track_temperature_c", None)),
+        water_temperature_c=_optional_float(getattr(telemetry, "water_temperature_c", None)),
+        brake_bias=_optional_float(getattr(telemetry, "brake_bias", None)),
+        tc_level=_optional_int(getattr(telemetry, "tc_level", None)),
+        tc_cut=_optional_int(getattr(telemetry, "tc_cut", None)),
+        abs_level=_optional_int(getattr(telemetry, "abs_level", None)),
+        engine_map=_optional_int(getattr(telemetry, "engine_map", None)),
+        pit_limiter_on=getattr(telemetry, "pit_limiter_on", None),
+        penalty_time_s=_optional_float(getattr(telemetry, "penalty_time_s", None)),
+        fuel_per_lap=_optional_float(getattr(telemetry, "fuel_per_lap", None)),
+        fuel_estimated_laps=_optional_float(getattr(telemetry, "fuel_estimated_laps", None)),
+        track_status=str(getattr(telemetry, "track_status", "") or ""),
+        track_grip_status=_optional_int(getattr(telemetry, "track_grip_status", None)),
+        rain_intensity=_optional_int(getattr(telemetry, "rain_intensity", None)),
+        rain_intensity_10min=_optional_int(getattr(telemetry, "rain_intensity_10min", None)),
+        rain_intensity_30min=_optional_int(getattr(telemetry, "rain_intensity_30min", None)),
+        wind_speed_mps=_optional_float(getattr(telemetry, "wind_speed_mps", None)),
+        extras=tuple((name, getattr(telemetry, name, None)) for name in (
+            "fuel_l", "tyre_compound", "car", "track", "session", "penalty_type",
+            "brake_pad_life", "brake_disc_life", "turbo_boost", "used_fuel_l",
+            "rain_tyres", "mandatory_pit_done", "missing_mandatory_pits",
+            "driver_stint_left_ms", "driver_stint_total_ms", "gap_ahead_ms",
+            "gap_behind_ms", "fuel_to_add_l", "current_tyre_set", "strategy_tyre_set",
+            "exhaust_temperature_c", "engine_running", "ignition_on", "is_ai_controlled",
+            "g_force", "local_velocity", "local_angular_velocity",
+        )),
     )
 
 
@@ -332,6 +404,15 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         player=car,
         extended=extended,
     )
+
+def _optional_tuple(value):
+    if not isinstance(value, (tuple, list)):
+        return None
+    try:
+        return tuple(_optional_float(item) for item in value)
+    except (TypeError, ValueError):
+        return None
+
 
 def _optional_float(value) -> Optional[float]:
     try:
