@@ -242,3 +242,74 @@ def test_acc_common_frame_contains_extended_telemetry():
     assert frame.current_lap_time_s == 90.0
     assert frame.fuel_remaining_laps == 8.5
     assert frame.air_temperature_c == 21.0
+
+
+
+def test_acc_radio_answers_tyre_and_car_temperatures_from_native_fields():
+    from src.voice_commands import handle_voice_request, parse_intent, VoiceIntent
+
+    live = SimpleNamespace(
+        car="GT3",
+        track="Monza",
+        session=2,
+        session_type=2,
+        lap_number=3,
+        position=5,
+        speed_kph=180,
+        gear=4,
+        engine_rpm=6500,
+        throttle_percent=50,
+        brake_percent=0,
+        steering_percent=0,
+        tyre_compound="Dry",
+        tyre_core_temperatures_c=(82.0, 84.0, 86.0, 88.0),
+        tyre_pressures_psi=(26.0, 26.1, 26.2, 26.3),
+        water_temperature_c=91.0,
+        air_temperature_c=23.0,
+        track_temperature_c=32.0,
+    )
+    state = race_state_from_acc(live)
+
+    assert parse_intent("car temperature") == VoiceIntent.ENGINE_TEMPERATURE
+    tyre = handle_voice_request("tyre temperature details", state)
+    engine = handle_voice_request("car temperature", state)
+    air = handle_voice_request("air temperature", state)
+    track = handle_voice_request("track temperature", state)
+
+    assert "core temperatures" in tyre.response.lower()
+    assert "82" in tyre.response and "88" in tyre.response
+    assert "91" in engine.response
+    assert "23" in air.response
+    assert "32" in track.response
+
+
+def test_acc_overlay_snapshot_uses_acc_common_state_without_f1_pit_advice():
+    from src.overlay.data import build_overlay_snapshot
+
+    live = SimpleNamespace(
+        car="GT3",
+        track="Monza",
+        session=2,
+        session_type=2,
+        lap_number=4,
+        position=6,
+        speed_kph=190,
+        gear=5,
+        engine_rpm=7000,
+        throttle_percent=80,
+        brake_percent=0,
+        steering_percent=10,
+        tyre_compound="Dry",
+        tyre_core_temperatures_c=(80.0, 81.0, 82.0, 83.0),
+        tyre_pressures_psi=(26.0, 26.1, 26.2, 26.3),
+        air_temperature_c=22.0,
+        track_temperature_c=30.0,
+    )
+    state = race_state_from_acc(live)
+    snapshot = build_overlay_snapshot(state, None, connected=True)
+
+    assert snapshot.connected is True
+    assert snapshot.speed_kph == 190
+    assert snapshot.tyre_core_temperatures_c == (80.0, 81.0, 82.0, 83.0)
+    assert snapshot.tyre_pressures_psi == (26.0, 26.1, 26.2, 26.3)
+    assert snapshot.race_engineer.decision == "ACC STRATEGY NOT READY"
