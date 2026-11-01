@@ -638,6 +638,9 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
     acc = isinstance(getattr(state, "extended", None), dict) and state.extended.get("game_id") == "acc"
     if acc:
         data = state.extended
+        if intent == VoiceIntent.BEST_LAP:
+            value = data.get("best_lap_time_ms")
+            return f"ACC session best lap {float(value) / 1000.0:.3f} seconds." if isinstance(value, (int, float)) and value > 0 else "ACC best lap time unavailable."
         if intent == VoiceIntent.FUEL_STATUS:
             litres = data.get("fuel_l")
             laps = car.fuel.remaining_laps
