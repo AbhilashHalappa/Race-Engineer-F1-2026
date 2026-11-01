@@ -36,10 +36,7 @@ def install() -> None:
 
     def receiver_init(self, *args, **kwargs):
         original_receiver_init(self, *args, **kwargs)
-        runtime = ACCRuntime()
-        runtime.start()
-        runtime.stop()
-        self.acc_runtime = runtime
+        self.acc_runtime = ACCRuntime()
         with _lock:
             _receivers_by_bridge[id(self.wheel_bridge)] = self
 
@@ -54,7 +51,6 @@ def install() -> None:
         original_reader_init(self, *args, **kwargs)
         self._acc_receiver = _receiver_for_callback(callback)
         self._acc_last_engineer_at = 0.0
-        self._acc_last_packet_count = 0
         self._acc_runtime_started = False
 
     if not getattr(ACCSharedMemoryReader, "_acc_bootstrap_installed", False):
@@ -100,19 +96,9 @@ def install() -> None:
                 messages = receiver.acc_runtime.update(live, now)
                 if messages and receiver.speech.config.enabled:
                     receiver.speech.submit(messages)
-                    for message in messages:
-                        try:
-                            receiver.radio_transcript.add(
-                                source="race_engineer",
-                                text=message.text,
-                                key=message.key,
-                            )
-                        except Exception:
-                            pass
                 self._acc_last_engineer_at = now
             except Exception as error:
-                receiver.acc_runtime.status.connected = False
-                receiver.acc_runtime.status.last_error = str(error) if hasattr(receiver.acc_runtime.status, "last_error") else None
+                print(f"[ACC ENGINEER] runtime update skipped: {error}", flush=True)
             return result
 
         ACCSharedMemoryReader._publish = reader_publish
