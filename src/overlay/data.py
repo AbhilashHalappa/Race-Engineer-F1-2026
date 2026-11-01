@@ -456,7 +456,7 @@ class OverlaySnapshot:
     air_temperature_c: float | None = None
     track_temperature_c: float | None = None
     water_temperature_c: float | None = None
-    fuel_l: float | None = None
+    fuel_kg: float | None = None
     tc_level: int | None = None
     tc_cut: int | None = None
     abs_level: int | None = None
@@ -2030,7 +2030,7 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         air_temperature_c=getattr(session, "air_temperature_c", None) if session is not None else None,
         track_temperature_c=getattr(session, "track_temperature_c", None) if session is not None else None,
         water_temperature_c=(state.extended.get("water_temperature_c") if isinstance(getattr(state, "extended", None), dict) else None),
-        fuel_l=(state.extended.get("fuel_l") if isinstance(getattr(state, "extended", None), dict) else None),
+        fuel_kg=(state.extended.get("fuel_kg") if isinstance(getattr(state, "extended", None), dict) else None),
         tc_level=(state.extended.get("tc_level") if isinstance(getattr(state, "extended", None), dict) else None),
         tc_cut=(state.extended.get("tc_cut") if isinstance(getattr(state, "extended", None), dict) else None),
         abs_level=(state.extended.get("abs_level") if isinstance(getattr(state, "extended", None), dict) else None),
