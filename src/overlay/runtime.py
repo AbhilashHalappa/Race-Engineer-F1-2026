@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+import time
 
 
 def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, replay_fast=False, click_through=False, web_dash=True, dash_host="0.0.0.0", dash_port=8765) -> int:
@@ -289,11 +290,41 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                 # normal Qt overlay, Control Center and dashboard remain active.
                 # F1 coaching/strategy is intentionally not evaluated for ACC.
                 from ..acc_telemetry import ACCSharedMemoryReader
+                print("[ACC] Qt runtime selected: ACC Stage 1 Shared Memory", flush=True)
                 acc_reader = ACCSharedMemoryReader(on_snapshot=receiver.wheel_bridge.update)
-                receiver.wheel_bridge.start()
+                if receiver.wheel_bridge.enabled:
+                    receiver.wheel_bridge.start()
+                    print("[ACC] GamePad Pro bridge start requested", flush=True)
+                else:
+                    print("[ACC] WARNING: GamePad Pro telemetry is disabled in Product Settings or safe mode", flush=True)
                 acc_reader.start()
+                print("[ACC] Shared Memory reader started; waiting for ACC physics packets", flush=True)
+                last_error = None
+                last_report = 0.0
+                last_packet_count = 0
                 while not stop_event.wait(0.25):
-                    pass
+                    live, _wheel = acc_reader.snapshots()
+                    error = acc_reader.last_error
+                    now = time.monotonic()
+                    if error and error != last_error:
+                        print(f"[ACC] Shared Memory unavailable: {error}", flush=True)
+                    elif not error and live.total_packets > last_packet_count and now - last_report >= 2.0:
+                        health = receiver.wheel_bridge.health_snapshot()
+                        link = "CONNECTED" if health.serial_connected else "DISCONNECTED"
+                        port = health.port or receiver.wheel_bridge.requested_port or "auto"
+                        print(
+                            f"[ACC] Telemetry live | {live.speed_kph:.0f} km/h | "
+                            f"Gear {live.gear} | {live.engine_rpm} rpm | "
+                            f"Throttle {live.throttle_percent}% | Brake {live.brake_percent}% | "
+                            f"GamePad Pro {link} ({port}) | Frames {receiver.wheel_bridge.frames_sent}",
+                            flush=True,
+                        )
+                        last_report = now
+                    elif not error and live.total_packets == 0 and now - last_report >= 5.0:
+                        print("[ACC] Waiting for the first ACC physics packet; check that ACC is running in a driving session", flush=True)
+                        last_report = now
+                    last_packet_count = live.total_packets
+                    last_error = error
             else:
                 receiver.run(stop_event=stop_event)
         except BaseException as error:
