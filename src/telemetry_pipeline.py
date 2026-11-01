@@ -447,7 +447,8 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         "rain_lights", "flashing_lights", "lights_stage", "wiper_level", "track_configuration",
         "session_time_left_s", "normalized_car_position", "lap_distance_m", "lap_valid", "sector",
         "flag_status", "is_in_pit", "is_in_pit_lane", "session", "car",
-        "current_lap_time_ms", "session_type", "number_of_laps", "position", "lap_number",
+        "current_lap_time_ms", "last_lap_time_ms", "best_lap_time_ms",
+        "session_type", "number_of_laps", "position", "lap_number",
     )
     extended = {
         name: getattr(telemetry, name)
