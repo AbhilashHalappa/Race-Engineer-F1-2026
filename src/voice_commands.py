@@ -594,6 +594,14 @@ def _wheel_values(w: Wheels | None) -> list[float]:
 
 def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
     car = state.player
+    acc_mode = isinstance(getattr(state, "extended", None), dict) and state.extended.get("game_id") == "acc"
+    if acc_mode and intent in (
+        VoiceIntent.PIT_RECOMMENDATION, VoiceIntent.STRATEGY_STATUS,
+        VoiceIntent.TYRE_LIFE, VoiceIntent.FUEL_TO_FINISH, VoiceIntent.GAP_TREND,
+        VoiceIntent.STINT_COMPARE, VoiceIntent.REJOIN_TRAFFIC, VoiceIntent.UNDERCUT,
+        VoiceIntent.SAFETY_CAR_PIT,
+    ):
+        return "ACC strategy analysis is not yet calibrated. Live telemetry is available, but I won't apply F1 pit or stint assumptions."
     if intent == VoiceIntent.UNKNOWN:
         return "I don't support that radio request yet."
     if intent == VoiceIntent.COMPLEX_REASONING:
