@@ -168,7 +168,8 @@ def decode_physics_extended(data: bytes) -> dict:
         "wheel_slip": _array(p.wheel_slip), "wheel_load": None,  # ACC marks wheelLoad as unused
         "tyre_pressure_psi": _array(p.tyre_pressure_psi),
         "wheel_angular_speed": _array(p.wheel_angular_speed),
-        "tyre_dirty": _array(p.tyre_dirty), "tyre_core_temp_c": _array(p.tyre_core_temp_c),
+        "tyre_dirty": None,  # ACC marks tyreDirtyLevel as unused
+        "tyre_core_temp_c": _array(p.tyre_core_temp_c),
         "suspension_travel": _array(p.suspension_travel), "tc": _finite(p.tc),
         "heading": _finite(p.heading), "pitch": _finite(p.pitch), "roll": _finite(p.roll),
         "car_damage": _array(p.car_damage), "pit_limiter_on": bool(p.pit_limiter_on),
