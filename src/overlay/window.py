@@ -4732,7 +4732,12 @@ class RaceEngineerOverlayWindow(DataOverlayWindow):
         else:
             wear_color = RED
 
-        if s.fuel_remaining_laps is None:
+        if getattr(s,"game_id","f1_26") == "acc" and s.fuel_l is not None:
+            fuel_text = f"{s.fuel_l:.1f} L"
+            if s.fuel_remaining_laps is not None:
+                fuel_text += f" • {s.fuel_remaining_laps:.1f} laps"
+            fuel_color = GREEN if s.fuel_remaining_laps is None or s.fuel_remaining_laps >= 0.5 else QColor(239,183,77)
+        elif s.fuel_remaining_laps is None:
             fuel_text, fuel_color = "--", MUTED
         else:
             fuel_text = f"{s.fuel_remaining_laps:+.2f} laps"
