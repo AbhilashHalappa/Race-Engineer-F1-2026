@@ -8,10 +8,17 @@
 #include "RpmLedProtocol.h"
 #include "RpmLedReceiver.h"
 #include "RpmLedController.h"
+#include "Version.h"
+#if ENABLE_OTA
+#include "OTAManager.h"
+#endif
 
 void setup()
 {
     Serial.begin(115200);
+    Serial.println();
+    Serial.println(FW_NAME);
+    Serial.printf("Version: %s\\n", FW_STRING);
     delay(100);
     RpmLedController::begin();
 
@@ -28,6 +35,11 @@ void setup()
     }
 
     esp_now_register_recv_cb(RpmLedReceiver::onReceive);
+
+#if ENABLE_OTA
+    // Start OTA after ESP-NOW, matching the working Pedals implementation.
+    OTA::begin();
+#endif
     Serial.println("[RPM LED] WROOM controller ready");
     Serial.print("[RPM LED] STA MAC: ");
     Serial.println(WiFi.macAddress());
@@ -36,6 +48,9 @@ void setup()
 void loop()
 {
     RpmLedReceiver::update();
+#if ENABLE_OTA
+    OTA::update();
+#endif
     RpmLedController::update(
         RpmLedReceiver::rpmPercent(),
         RpmLedReceiver::shiftLight(),
