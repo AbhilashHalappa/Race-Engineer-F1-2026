@@ -21,7 +21,7 @@ SCHEMA_VERSION = 1
 GAME_PROFILE_SCHEMA_VERSION = 1
 SUPPORTED_GAMES: dict[str, dict[str, Any]] = {
     "f1_26": {"name": "F1 26", "discipline": "formula", "available": True},
-    "acc": {"name": "Assetto Corsa Competizione", "discipline": "gt", "available": False},
+    "acc": {"name": "Assetto Corsa Competizione", "discipline": "gt", "available": True, "telemetry_stage": 1, "coaching_available": False},
     "dirt_rally_2": {"name": "Dirt Rally 2.0", "discipline": "rally", "available": False},
 }
 
