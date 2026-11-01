@@ -14,7 +14,7 @@ class _Physics(ctypes.LittleEndianStructure):
     _pack_ = 4
     _fields_ = [
         ("packet_id", ctypes.c_int32), ("throttle", ctypes.c_float),
-        ("brake", ctypes.c_float), ("fuel_l", ctypes.c_float),
+        ("brake", ctypes.c_float), ("fuel_kg", ctypes.c_float),
         ("gear_raw", ctypes.c_int32), ("rpm", ctypes.c_int32),
         ("steering", ctypes.c_float), ("speed_kph", ctypes.c_float),
         ("velocity", ctypes.c_float * 3), ("acc_g", ctypes.c_float * 3),
@@ -161,7 +161,7 @@ def decode_physics_extended(data: bytes) -> dict:
     p = _Physics.from_buffer_copy(data[:PHYSICS_SIZE])
     return {
         "packet_id": int(p.packet_id), "throttle": _finite(p.throttle),
-        "brake": _finite(p.brake), "fuel_l": _finite(p.fuel_l),
+        "brake": _finite(p.brake), "fuel_kg": _finite(p.fuel_kg),
         "gear_raw": int(p.gear_raw), "rpm": int(p.rpm),
         "steering": _finite(p.steering), "speed_kph": _finite(p.speed_kph),
         "velocity": _array(p.velocity), "acc_g": _array(p.acc_g),
