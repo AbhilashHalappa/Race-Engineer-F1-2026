@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import time
 
-from .acc_engineer import ACCRaceEngineer, ACCEngineerMessage
-from .engineer.models import EngineerMessage, Priority
+from .engineer import AutomaticEngineer
+from .telemetry_pipeline import race_state_from_acc
 
 
 @dataclass(slots=True)
@@ -35,17 +35,19 @@ class ACCRuntime:
     """Own ACC engineering state while leaving all F1 state untouched."""
 
     def __init__(self, *, cooldown_s: float = 8.0) -> None:
-        self.engineer = ACCRaceEngineer(cooldown_s=cooldown_s)
+        # Reuse the existing Race Engineer rule engine with an ACC -> RaceState adapter.
+        self.engineer = AutomaticEngineer()
         self.status = ACCRuntimeStatus()
         self._active = False
         self._fuel_start_l: float | None = None
         self._fuel_start_lap: int | None = None
         self._last_lap = 0
+        self._session_uid = 1
 
     def start(self) -> None:
         self._active = True
         self.status = ACCRuntimeStatus(active=True)
-        self.engineer.reset()
+        self.engineer.reset(self._session_uid)
         self._fuel_start_l = None
         self._fuel_start_lap = None
         self._last_lap = 0
@@ -54,7 +56,7 @@ class ACCRuntime:
         self._active = False
         self.status.active = False
         self.status.connected = False
-        self.engineer.reset()
+        self.engineer.reset(self._session_uid)
 
     @property
     def active(self) -> bool:
@@ -91,23 +93,15 @@ class ACCRuntime:
         lap = self.status.lap
         self._update_fuel_history(lap, fuel, now)
 
-        # LiveTelemetry is immutable/slot-based, so pass a small proxy for
-        # optional ACC-only engineering fields.
-        class _ACCProxy:
-            pass
-
-        proxy = _ACCProxy()
-        for name in (
-            "lap_number", "fuel_l", "fuel_percent", "position", "speed_kph",
-            "gear", "engine_rpm", "throttle_percent", "brake_percent",
-            "steering_percent", "flag_status", "last_packet_monotonic",
-            "best_lap_time_ms", "last_lap_time_ms", "is_in_pit", "is_in_pit_lane",
-        ):
-            setattr(proxy, name, getattr(telemetry, name, None))
-        proxy.fuel_per_lap_l = self._learned_fuel_per_lap()
-
-        generated = self.engineer.evaluate(proxy, now)
-        return tuple(self._convert(msg, now) for msg in generated)
+        # Convert ACC values into the existing RaceState contract, then run the
+        # same deterministic AutomaticEngineer used by F1. Missing ACC fields
+        # remain None; no F1-only telemetry is fabricated.
+        state = race_state_from_acc(
+            telemetry,
+            fuel_remaining_laps=self._estimated_fuel_laps(fuel),
+            session_uid=self._session_uid,
+        )
+        return self.engineer.evaluate(state, now)
 
     def _update_fuel_history(self, lap: int, fuel, now: float) -> None:
         if not isinstance(fuel, (int, float)) or fuel < 0:
@@ -145,19 +139,3 @@ class ACCRuntime:
         ]
         return (sum(usable) / len(usable)) if usable else None
 
-    @staticmethod
-    def _convert(message: ACCEngineerMessage, now: float) -> EngineerMessage:
-        priority = {
-            0: Priority.CRITICAL,
-            1: Priority.STRATEGY,
-            2: Priority.INFORMATION,
-            3: Priority.COACHING,
-        }.get(int(message.priority), Priority.INFORMATION)
-        return EngineerMessage(
-            key=f"acc:{message.key}",
-            priority=priority,
-            text=message.text,
-            created_at=now,
-            session_time_s=None,
-            speak=bool(message.speak),
-        )
