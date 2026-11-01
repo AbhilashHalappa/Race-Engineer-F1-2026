@@ -163,20 +163,20 @@ def install() -> None:
             if lock is None:
                 previous = self.engine.state
                 self.engine.state = self.acc_common_state
-            else:
-                with lock:
-                    previous = self.engine.state
-                    self.engine.state = self.acc_common_state
-            try:
-                return original_on_transcript(self, *args, **kwargs)
-            finally:
-                if lock is None:
-                    if self.engine.state is self.acc_common_state:
-                        self.engine.state = previous
-                else:
-                    with lock:
-                        if self.engine.state is self.acc_common_state:
-                            self.engine.state = previous
+                try:
+                    return original_on_transcript(self, *args, **kwargs)
+                finally:
+                    self.engine.state = previous
+            # Hold the receiver's re-entrant state lock for the short transcript
+            # dispatch so an ACC frame or F1 source switch cannot interleave and
+            # leave the native F1 state replaced by a temporary ACC view.
+            with lock:
+                previous = self.engine.state
+                self.engine.state = self.acc_common_state
+                try:
+                    return original_on_transcript(self, *args, **kwargs)
+                finally:
+                    self.engine.state = previous
 
         RaceStateReceiver._on_transcript = on_transcript
         RaceStateReceiver._acc_voice_bootstrap_installed = True
