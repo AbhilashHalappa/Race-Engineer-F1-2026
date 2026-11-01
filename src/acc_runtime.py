@@ -50,6 +50,7 @@ class ACCRuntime:
         self._map_last_normalized = None
         self._map_trace = []
         self._map_collecting = False
+        self._last_engineer_eval_at: float | None = None
         self.latest_state = None
 
     def start(self) -> None:
@@ -64,6 +65,7 @@ class ACCRuntime:
         self._map_last_normalized = None
         self._map_trace = []
         self._map_collecting = False
+        self._last_engineer_eval_at = None
         self.latest_state = None
 
     def stop(self) -> None:
@@ -141,6 +143,11 @@ class ACCRuntime:
         if isinstance(getattr(state, "extended", None), dict):
             state.extended["acc_map_trace"] = map_trace
         self.latest_state = state
+        # Keep state/map sampling at the Shared Memory rate, but cap the more
+        # expensive automatic engineer evaluation at 20 Hz like the F1 runtime.
+        if self._last_engineer_eval_at is not None and now - self._last_engineer_eval_at < 0.05:
+            return ()
+        self._last_engineer_eval_at = now
         # ACC uses the shared transition/threshold rules, but deliberately
         # skips F1-only event and pit-strategy evaluation categories.
         messages = self.engineer.evaluate(state, now, changed_category="telemetry")
