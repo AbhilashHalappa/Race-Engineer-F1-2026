@@ -182,4 +182,6 @@ class LiveTelemetry:
     lights_stage: int | None = None
     wiper_level: int | None = None
     track_configuration: str = ""
+    # Full decoded ACC page payloads retained for downstream consumers/audits.
+    acc_native: tuple = ()
     last_packet_monotonic: float | None = None
