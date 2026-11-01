@@ -465,6 +465,7 @@ class OverlaySnapshot:
     wheel_slip: tuple[float | None, ...] = ()
     car_damage: tuple[float | None, ...] = ()
     rain_intensity: int | None = None
+    acc_telemetry: tuple = ()
     # V0.9.19.1 dashboard setup strip. Direct EA car-setup packet values only.
     setup_diff_on_throttle_percent: float | None = None
     setup_diff_off_throttle_percent: float | None = None
@@ -2036,6 +2037,7 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         wheel_slip=(tuple(state.extended.get("wheel_slip") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
         car_damage=(tuple(state.extended.get("car_damage") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
         rain_intensity=(state.extended.get("rain_intensity") if isinstance(getattr(state, "extended", None), dict) else None),
+        acc_telemetry=(state.extended.get("acc_native", ()) if isinstance(getattr(state, "extended", None), dict) else ()),
         setup_diff_on_throttle_percent=(float(getattr(setup_car, "m_onThrottle")) if setup_car is not None and _num(getattr(setup_car, "m_onThrottle", None)) else None),
         setup_diff_off_throttle_percent=(float(getattr(setup_car, "m_offThrottle")) if setup_car is not None and _num(getattr(setup_car, "m_offThrottle", None)) else None),
         setup_brake_bias_percent=(float(getattr(setup_car, "m_brakeBias")) if setup_car is not None and _num(getattr(setup_car, "m_brakeBias", None)) else None),
