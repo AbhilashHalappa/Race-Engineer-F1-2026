@@ -450,6 +450,20 @@ class OverlaySnapshot:
     ers_deploy_mode: str | None = None
     tyre_surface_temperatures_c: tuple[float | None, float | None, float | None, float | None] = (None, None, None, None)
     tyre_inner_temperatures_c: tuple[float | None, float | None, float | None, float | None] = (None, None, None, None)
+    tyre_core_temperatures_c: tuple[float | None, float | None, float | None, float | None] = (None, None, None, None)
+    # Game-neutral engineering channels; ACC-only values stay absent for F1.
+    air_temperature_c: float | None = None
+    track_temperature_c: float | None = None
+    water_temperature_c: float | None = None
+    fuel_l: float | None = None
+    tc_level: int | None = None
+    tc_cut: int | None = None
+    abs_level: int | None = None
+    brake_bias: float | None = None
+    turbo_boost: float | None = None
+    wheel_slip: tuple[float | None, ...] = ()
+    car_damage: tuple[float | None, ...] = ()
+    rain_intensity: int | None = None
     # V0.9.19.1 dashboard setup strip. Direct EA car-setup packet values only.
     setup_diff_on_throttle_percent: float | None = None
     setup_diff_off_throttle_percent: float | None = None
@@ -1979,6 +1993,19 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         ers_deploy_mode=_enum_name(getattr(energy, "deploy_mode", None)) if energy is not None else None,
         tyre_surface_temperatures_c=_wheel_values(getattr(getattr(player, "tyres", None), "surface_temperature_c", None)) if player is not None else (None, None, None, None),
         tyre_inner_temperatures_c=_wheel_values(getattr(getattr(player, "tyres", None), "inner_temperature_c", None)) if player is not None else (None, None, None, None),
+        tyre_core_temperatures_c=_wheel_values(getattr(getattr(player, "tyres", None), "core_temperature_c", None)) if player is not None else (None, None, None, None),
+        air_temperature_c=getattr(session, "air_temperature_c", None) if session is not None else None,
+        track_temperature_c=getattr(session, "track_temperature_c", None) if session is not None else None,
+        water_temperature_c=(state.extended.get("water_temperature_c") if isinstance(getattr(state, "extended", None), dict) else None),
+        fuel_l=(state.extended.get("fuel_l") if isinstance(getattr(state, "extended", None), dict) else None),
+        tc_level=(state.extended.get("tc_level") if isinstance(getattr(state, "extended", None), dict) else None),
+        tc_cut=(state.extended.get("tc_cut") if isinstance(getattr(state, "extended", None), dict) else None),
+        abs_level=(state.extended.get("abs_level") if isinstance(getattr(state, "extended", None), dict) else None),
+        brake_bias=(state.extended.get("brake_bias") if isinstance(getattr(state, "extended", None), dict) else None),
+        turbo_boost=(state.extended.get("turbo_boost") if isinstance(getattr(state, "extended", None), dict) else None),
+        wheel_slip=(tuple(state.extended.get("wheel_slip") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
+        car_damage=(tuple(state.extended.get("car_damage") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
+        rain_intensity=(state.extended.get("rain_intensity") if isinstance(getattr(state, "extended", None), dict) else None),
         setup_diff_on_throttle_percent=(float(getattr(setup_car, "m_onThrottle")) if setup_car is not None and _num(getattr(setup_car, "m_onThrottle", None)) else None),
         setup_diff_off_throttle_percent=(float(getattr(setup_car, "m_offThrottle")) if setup_car is not None and _num(getattr(setup_car, "m_offThrottle", None)) else None),
         setup_brake_bias_percent=(float(getattr(setup_car, "m_brakeBias")) if setup_car is not None and _num(getattr(setup_car, "m_brakeBias", None)) else None),
