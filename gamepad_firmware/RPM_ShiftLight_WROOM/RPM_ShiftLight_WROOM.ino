@@ -18,7 +18,7 @@ void setup()
     Serial.begin(115200);
     Serial.println();
     Serial.println(FW_NAME);
-    Serial.printf("Version: %s\\n", FW_STRING);
+    Serial.printf("Version: %s\n", FW_STRING);
     delay(100);
     RpmLedController::begin();
 
