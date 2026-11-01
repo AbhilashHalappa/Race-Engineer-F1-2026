@@ -17,7 +17,7 @@ def test_acc_physics_layout_decodes_full_live_engineering_channels():
     page.packet_id = 12
     page.throttle = 0.75
     page.brake = 0.15
-    page.fuel_l = 42.5
+    page.fuel_kg = 42.5
     page.gear_raw = 4
     page.rpm = 6800
     page.steering = -0.25
