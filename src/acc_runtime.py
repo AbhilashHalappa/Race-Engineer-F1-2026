@@ -44,6 +44,7 @@ class ACCRuntime:
         self._fuel_start_lap: int | None = None
         self._last_lap = 0
         self._session_uid = 1
+        self.latest_state = None
 
     def start(self) -> None:
         self._active = True
@@ -52,12 +53,14 @@ class ACCRuntime:
         self._fuel_start_l = None
         self._fuel_start_lap = None
         self._last_lap = 0
+        self.latest_state = None
 
     def stop(self) -> None:
         self._active = False
         self.status.active = False
         self.status.connected = False
         self.engineer.reset(self._session_uid)
+        self.latest_state = None
 
     @property
     def active(self) -> bool:
@@ -102,6 +105,7 @@ class ACCRuntime:
             fuel_remaining_laps=self._estimated_fuel_laps(fuel),
             session_uid=self._session_uid,
         )
+        self.latest_state = state
         return self.engineer.evaluate(state, now)
 
     def _update_fuel_history(self, lap: int, fuel, now: float) -> None:
