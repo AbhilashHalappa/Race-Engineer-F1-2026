@@ -4,7 +4,7 @@ from __future__ import annotations
 import threading
 
 
-def run_overlay(receiver, *, replay_file=None, replay_speed=1.0, replay_fast=False, click_through=False, web_dash=True, dash_host="0.0.0.0", dash_port=8765) -> int:
+def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, replay_fast=False, click_through=False, web_dash=True, dash_host="0.0.0.0", dash_port=8765) -> int:
     try:
         from PySide6.QtCore import QTimer, Qt
         from PySide6.QtWidgets import (
@@ -144,8 +144,7 @@ def run_overlay(receiver, *, replay_file=None, replay_speed=1.0, replay_fast=Fal
         time_zone.setToolTip("IANA time zone, for example Asia/Kolkata or Europe/London")
         game = QComboBox()
         game.addItem("F1 26 — Available", "f1_26")
-        game.addItem("ACC — Future support", "acc")
-        game.model().item(1).setEnabled(False)
+        game.addItem("ACC — Stage 1 telemetry", "acc")
         game.addItem("Dirt Rally 2.0 — Future support", "dirt_rally_2")
         game.model().item(2).setEnabled(False)
 
@@ -279,10 +278,24 @@ def run_overlay(receiver, *, replay_file=None, replay_speed=1.0, replay_fast=Fal
     replay_thread = {"thread": None, "stop": None}
     mode = {"value": "live"}
 
+    acc_reader = None
+
     def live_worker():
+        nonlocal acc_reader
         try:
             receiver.set_telemetry_mode("live")
-            receiver.run(stop_event=stop_event)
+            if str(game or "f1_26").strip().lower() == "acc":
+                # Stage 1: ACC feeds the existing GamePad Pro bridge while the
+                # normal Qt overlay, Control Center and dashboard remain active.
+                # F1 coaching/strategy is intentionally not evaluated for ACC.
+                from ..acc_telemetry import ACCSharedMemoryReader
+                acc_reader = ACCSharedMemoryReader(on_snapshot=receiver.wheel_bridge.update)
+                receiver.wheel_bridge.start()
+                acc_reader.start()
+                while not stop_event.wait(0.25):
+                    pass
+            else:
+                receiver.run(stop_event=stop_event)
         except BaseException as error:
             errors.append(error)
             stop_event.set()
@@ -401,6 +414,9 @@ def run_overlay(receiver, *, replay_file=None, replay_speed=1.0, replay_fast=Fal
     _stop_replay_thread()
     stop_event.set()
     live_thread.join(timeout=3.0)
+    if acc_reader is not None:
+        acc_reader.close(wait=True)
+        receiver.wheel_bridge.close(wait=True)
     if dashboard_server is not None:
         dashboard_server.stop()
     return rc
