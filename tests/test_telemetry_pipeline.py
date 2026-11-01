@@ -51,7 +51,7 @@ def test_acc_adapter_normalizes_percentages_and_lap_times():
         throttle_percent=75,
         brake_percent=20,
         steering_percent=-35,
-        fuel_l=42.5,
+        fuel_kg=42.5,
         last_lap_time_ms=101234,
         best_lap_time_ms=100500,
         is_in_pit=False,
@@ -154,7 +154,7 @@ def test_acc_runtime_feeds_converted_state_to_existing_engineer():
     assert runtime.update(sample(1, 50.0), now=1.0) == ()
     messages = runtime.update(sample(2, 48.0, 99500), now=2.0)
     assert any(message.key == "lap:2" for message in messages)
-    assert runtime.status.fuel_l == 48.0
+    assert runtime.status.fuel_kg == 48.0
     runtime.stop()
 
 
@@ -230,6 +230,7 @@ def test_acc_common_frame_contains_extended_telemetry():
         air_temperature_c=21.0,
         track_temperature_c=30.0,
         water_temperature_c=90.0,
+        fuel_kg=35.0,
         fuel_estimated_laps=8.5,
         max_fuel_kg=120.0,
         tc_level=2,
@@ -244,6 +245,7 @@ def test_acc_common_frame_contains_extended_telemetry():
     assert frame.brake_temperatures_c == (500.0, 501.0, 502.0, 503.0)
     assert frame.current_lap_time_s == 90.0
     assert frame.fuel_remaining_laps == 8.5
+    assert frame.fuel_kg == 35.0
     assert frame.fuel_capacity_kg == 120.0
     assert frame.air_temperature_c == 21.0
 
