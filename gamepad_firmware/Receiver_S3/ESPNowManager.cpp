@@ -159,6 +159,7 @@ void processTxQueue()
             sizeof(queuedHandbrakeSensorFrame));
         handbrakeSensorTxPending = false;
         if (result != ESP_OK) { txBusy = false; txIsPedalSensorConfig = false; ++sendFailures; }
+        return;
     }
     // Lowest-priority telemetry: never delay wheel or sensor configuration TX.
     if (rpmLedTxPending)
