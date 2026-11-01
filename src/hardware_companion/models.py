@@ -104,7 +104,6 @@ class LiveTelemetry:
     session_type: int | None = None
     sector: int | None = None
     lap_valid: bool | None = None
-    lap_distance_m: float | None = None
     normalized_car_position: float | None = None
     lap_distance_m: float | None = None
     tyre_compound: str = ""
