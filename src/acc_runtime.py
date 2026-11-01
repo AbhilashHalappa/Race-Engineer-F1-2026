@@ -122,7 +122,7 @@ class ACCRuntime:
         state = race_state_from_acc(
             telemetry,
             fuel_remaining_laps=self._estimated_fuel_laps(fuel),
-            session_uid=self._session_uid,
+            session_uid=1_000_000 + self._session_uid,
         )
         self.latest_state = state
         # ACC uses the shared transition/threshold rules, but deliberately
