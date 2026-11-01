@@ -31,6 +31,7 @@ def install() -> None:
     from .race_state_receiver import RaceStateReceiver
     from .acc_telemetry import ACCSharedMemoryReader
     from .acc_runtime import ACCRuntime
+    from .telemetry_pipeline import telemetry_pipeline, frame_from_acc
 
     original_receiver_init = RaceStateReceiver.__init__
 
@@ -93,6 +94,8 @@ def install() -> None:
                 return result
             live, _wheel = self.snapshots()
             try:
+                # ACC and F1 now publish the same immutable frame contract.
+                telemetry_pipeline.publish(frame_from_acc(live, now=now))
                 messages = receiver.acc_runtime.update(live, now)
                 if messages and receiver.speech.config.enabled:
                     receiver.speech.submit(messages)
