@@ -720,7 +720,7 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
         if intent == VoiceIntent.PIT_STOPS:
             missing = data.get("missing_mandatory_pits")
             done = data.get("mandatory_pit_done")
-            if isinstance(missing, int):
+            if isinstance(missing, int) and missing >= 0:
                 return f"{missing} mandatory pit stops remaining."
             if isinstance(done, bool):
                 return "Mandatory pit stop completed." if done else "Mandatory pit stop not completed."
