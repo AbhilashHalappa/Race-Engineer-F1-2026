@@ -106,6 +106,7 @@ class LiveTelemetry:
     lap_valid: bool | None = None
     lap_distance_m: float | None = None
     normalized_car_position: float | None = None
+    lap_distance_m: float | None = None
     tyre_compound: str = ""
     tyre_pressures_psi: tuple[float | None, ...] | None = None
     tyre_core_temperatures_c: tuple[float | None, ...] | None = None
