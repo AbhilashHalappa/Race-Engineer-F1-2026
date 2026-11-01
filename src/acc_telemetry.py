@@ -242,13 +242,13 @@ class ACCSharedMemoryReader:
             self._stop.wait(max(0.001, remaining))
 
     def _publish(self, v, now, previous, graphics, static):
-        speed = max(0, min(65535, int(round(v["speed_kph"]))))
-        rpm = v["rpm"]
-        gear = max(-1, min(15, int(v["gear_raw"]) - 1))
-        max_rpm = static["max_rpm"] if static else 0
+        speed = max(0, min(65535, int(round(v.get("speed_kph") or 0.0))))
+        rpm = max(0, int(v.get("rpm") or 0))
+        gear = max(-1, min(15, int(v.get("gear_raw") or 0) - 1))
+        max_rpm = int((static or {}).get("max_rpm") or 0)
         rpm_percent = max(0, min(100, int(round(rpm * 100.0 / max_rpm)))) if max_rpm > 0 else 0
-        max_fuel = static["max_fuel_l"] if static else 0.0
-        fuel_l = max(0.0, float(v["fuel_l"] or 0.0))
+        max_fuel = float((static or {}).get("max_fuel_l") or 0.0)
+        fuel_l = max(0.0, float(v.get("fuel_l") or 0.0))
         fuel_percent = round(max(0.0, min(100.0, fuel_l * 100.0 / max_fuel)), 1) if max_fuel > 0 else None
         if graphics:
             position = graphics["position"]
@@ -259,15 +259,15 @@ class ACCSharedMemoryReader:
             position = 0
             lap_number = 0
             flag_status = 0
-        steering_percent = int(round(max(-1.0, min(1.0, v["steering"])) * 100.0))
+        steering_percent = int(round(max(-1.0, min(1.0, float(v.get("steering") or 0.0))) * 100.0))
         shift_light = int(rpm_percent >= 95) if max_rpm > 0 else 0
         wheel = WheelTelemetrySnapshot(
             speed=speed, gear=gear, position=position, rpm_percent=rpm_percent,
             shift_light=shift_light, flag_status=flag_status, ers_mode=0, status_bits=0,
         )
         rate = 1.0 / max(0.001, now - previous) if previous is not None else 0.0
-        throttle = int(round(v["throttle"] * 100))
-        brake = int(round(v["brake"] * 100))
+        throttle = int(round(max(0.0, min(1.0, float(v.get("throttle") or 0.0))) * 100))
+        brake = int(round(max(0.0, min(1.0, float(v.get("brake") or 0.0))) * 100))
         with self._lock:
             live = LiveTelemetry(
                 udp_connected=True,
