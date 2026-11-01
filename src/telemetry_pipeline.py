@@ -416,7 +416,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
             brakes_temperature_c=brake_temps,
             brake_pressure=brake_pressure,
         ),
-        fuel=FuelState(remaining_mass=number(getattr(telemetry, "fuel_kg", None)), capacity=number(getattr(telemetry, "max_fuel_kg", None)), remaining_laps=fuel_laps),
+        fuel=FuelState(remaining_mass=number(getattr(telemetry, "fuel_kg", None)), capacity=number(getattr(telemetry, "max_fuel_kg", None)), remaining_laps=fuel_laps, mass_unit="kg"),
         tyres=TyreState(
             actual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
             visual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
