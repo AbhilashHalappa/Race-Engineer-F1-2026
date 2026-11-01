@@ -2882,6 +2882,7 @@ class ControlCenterWindow(OverlayPanel):
         label.setText(self._profile_initials(name))
 
     def refresh_driver_profile(self):
+        from ..driver_profiles import SUPPORTED_GAMES
         try:
             store = self._driver_profile_store()
             profile = store.active_profile() or {}
