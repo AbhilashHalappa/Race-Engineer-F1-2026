@@ -40,6 +40,7 @@ class SensorConfigurationWidget(QWidget):
         self._curve_stamp = None
         self._curve_cache: dict[str, AxisCurve] = {}
         self._enable_sync_done = False
+        self._v4_probe_sent = False
         root = QVBoxLayout(self)
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(10)
@@ -58,6 +59,13 @@ class SensorConfigurationWidget(QWidget):
         root.addWidget(self.tabs, 1)
         self._build_pedals()
         self._build_handbrake()
+        receiver = getattr(self.runtime, "receiver", None)
+        if receiver is not None:
+            try:
+                receiver.request_pedal_settings(version=4)
+                self._v4_probe_sent = True
+            except Exception:
+                pass
 
     def _field(self, value, *, integer=False, minimum=0.01, maximum=100000000.0, width=120):
         edit = QLineEdit(str(value))
@@ -112,8 +120,11 @@ class SensorConfigurationWidget(QWidget):
                     f"detected V{version if supported else 'unsupported'}"
                 )
             updated = replace(current, **{f"{axis}_enabled": bool(checked)})
-            receiver.apply_pedal_settings(updated, save=True)
-            receiver.request_pedal_settings(version=max(required, version))
+            # Force V4 for T/B flags; V4 is backward-compatible with the V3
+            # four-axis payload and is required to transmit both enable bits.
+            wire_version = 4 if axis in ("throttle", "brake") else max(required, version)
+            receiver.apply_pedal_settings(updated, save=True, version=wire_version)
+            receiver.request_pedal_settings(version=wire_version)
             self.settings[f"{axis}_enabled"] = bool(checked)
             save_settings(self.settings)
             self._update_enable_button(button, axis, checked)
@@ -323,6 +334,9 @@ class SensorConfigurationWidget(QWidget):
         # the controls from its latest PC/PS settings without emitting writes.
         try:
             curve_settings, supported, _curve_stamp, version = receiver.pedal_settings_snapshot()
+            if supported and version < 4 and not self._v4_probe_sent:
+                receiver.request_pedal_settings(version=4)
+                self._v4_probe_sent = True
             if supported:
                 for axis in self.AXES:
                     required = 4 if axis in ("throttle", "brake") else (3 if axis == "handbrake" else 2)
@@ -339,6 +353,7 @@ class SensorConfigurationWidget(QWidget):
                         button.blockSignals(False)
                         self._update_enable_button(button, axis, enabled)
                     self.settings[f"{axis}_enabled"] = enabled
+                save_settings(self.settings)
         except Exception:
             # Sensor readback remains usable if the optional PC/PS query fails.
             pass
