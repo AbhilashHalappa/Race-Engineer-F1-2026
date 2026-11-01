@@ -132,7 +132,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         rpm=_optional_int(getattr(telemetry, "engine_rpm", None)),
         throttle=_percent_fraction(getattr(telemetry, "throttle_percent", None)),
         brake=_percent_fraction(getattr(telemetry, "brake_percent", None)),
-        steering=_percent_fraction(getattr(telemetry, "steering_percent", None)),
+        steering=_signed_percent_fraction(getattr(telemetry, "steering_percent", None)),
         fuel_l=_optional_float(getattr(telemetry, "fuel_l", None)),
         last_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
         best_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "best_lap_time_ms", None)),
@@ -167,7 +167,8 @@ def frame_from_f1(state, *, now: float | None = None) -> TelemetryFrame | None:
         throttle=_optional_float(getattr(car, "throttle", None)),
         brake=_optional_float(getattr(car, "brake", None)),
         steering=_optional_float(getattr(car, "steering", None)),
-        fuel_l=_optional_float(getattr(fuel, "remaining_mass", None)),
+        # F1's fuel mass unit is unspecified; do not label it as litres.
+        fuel_l=None,
         fuel_remaining_laps=_optional_float(getattr(fuel, "remaining_laps", None)),
         current_lap_time_s=_optional_float(getattr(lap, "current_lap_time_s", None)),
         last_lap_time_s=_optional_float(getattr(lap, "previous_lap_time_s", None)),
@@ -175,6 +176,7 @@ def frame_from_f1(state, *, now: float | None = None) -> TelemetryFrame | None:
         tyre_pressures=_wheel_tuple(getattr(tyres, "pressure_psi", None)),
         tyre_temperatures=_wheel_tuple(getattr(tyres, "surface_temperature_c", None)),
         tyre_wear=_wheel_tuple(getattr(tyres, "wear_percent", None)),
+        extras=(("fuel_mass_raw", _optional_float(getattr(fuel, "remaining_mass", None))),),
     )
 
 
@@ -196,6 +198,11 @@ def _optional_int(value) -> Optional[int]:
 def _percent_fraction(value) -> Optional[float]:
     result = _optional_float(value)
     return None if result is None else max(0.0, min(1.0, result / 100.0))
+
+
+def _signed_percent_fraction(value) -> Optional[float]:
+    result = _optional_float(value)
+    return None if result is None else max(-1.0, min(1.0, result / 100.0))
 
 
 def _milliseconds_to_seconds(value) -> Optional[float]:
