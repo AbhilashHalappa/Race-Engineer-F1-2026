@@ -2583,10 +2583,11 @@ class ControlCenterWindow(OverlayPanel):
         note.setWordWrap(True); gl.addWidget(note)
         self.profile_game_cards={}
         self.profile_game_select_checks={}
+        from ..driver_profiles import SUPPORTED_GAMES
         specs=(
-            ("f1_26","F1 26","FORMULA",True),
-            ("acc","ASSETTO CORSA COMPETIZIONE","GT",False),
-            ("dirt_rally_2","DIRT RALLY 2.0","RALLY",False),
+            ("f1_26","F1 26","FORMULA",bool(SUPPORTED_GAMES["f1_26"]["available"])),
+            ("acc","ASSETTO CORSA COMPETIZIONE","GT",bool(SUPPORTED_GAMES["acc"]["available"])),
+            ("dirt_rally_2","DIRT RALLY 2.0","RALLY",bool(SUPPORTED_GAMES["dirt_rally_2"]["available"])),
         )
         for gid,name,discipline,available in specs:
             card=QFrame(); card.setObjectName("controlCard")
@@ -3033,11 +3034,12 @@ class ControlCenterWindow(OverlayPanel):
                 check.blockSignals(True)
                 check.setChecked(gid==game_id)
                 check.blockSignals(False)
+            available = bool(SUPPORTED_GAMES.get(gid, {}).get("available", False))
             if gid==game_id:
-                suffix="" if gid=="f1_26" else " • TELEMETRY FUTURE"
+                suffix="" if available else " • TELEMETRY FUTURE"
                 state.setText("ACTIVE" + suffix)
                 state.setStyleSheet("color:#2ed486;font-weight:700;")
-            elif gid=="f1_26":
+            elif available:
                 state.setText("CONFIGURED")
                 state.setStyleSheet("color:#4dd9ff;font-weight:700;")
             else:
