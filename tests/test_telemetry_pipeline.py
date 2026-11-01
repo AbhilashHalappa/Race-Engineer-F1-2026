@@ -229,6 +229,7 @@ def test_acc_common_frame_contains_extended_telemetry():
         track_temperature_c=30.0,
         water_temperature_c=90.0,
         fuel_estimated_laps=8.5,
+        max_fuel_l=120.0,
         tc_level=2,
         abs_level=3,
     )
@@ -241,6 +242,7 @@ def test_acc_common_frame_contains_extended_telemetry():
     assert frame.brake_temperatures_c == (500.0, 501.0, 502.0, 503.0)
     assert frame.current_lap_time_s == 90.0
     assert frame.fuel_remaining_laps == 8.5
+    assert frame.fuel_capacity_l == 120.0
     assert frame.air_temperature_c == 21.0
 
 
