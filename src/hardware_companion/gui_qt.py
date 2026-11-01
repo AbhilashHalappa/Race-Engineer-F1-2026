@@ -1478,6 +1478,29 @@ class HardwareWorkspace(QMainWindow):
     def _poll(self):
         if hasattr(self, "sensor_setup"):
             self.sensor_setup.poll()
+            receiver = getattr(self.runtime, "receiver", None)
+            if receiver is not None:
+                pedal_status, _ = receiver.pedal_sensor_snapshot()
+                if pedal_status is not None:
+                    cfg = pedal_status.config
+                    self.throttle.set_input_mode(cfg.throttle_mode == 2, cfg.throttle_max_force_kg)
+                    self.brake.set_input_mode(cfg.brake_mode == 2, cfg.brake_max_force_kg)
+                    self.clutch.set_input_mode(cfg.clutch_mode == 2, cfg.clutch_max_force_kg)
+                    desired_brake_mode = "load_cell" if cfg.brake_mode == 2 else "analog"
+                    if self.brake_sensor.currentData() != desired_brake_mode:
+                        self.brake_sensor.setCurrentIndex(max(0, self.brake_sensor.findData(desired_brake_mode)))
+                    self.brake_capacity.setText(f"{cfg.brake_capacity_kg:g}")
+                    self.brake_max_force.setText(f"{cfg.brake_max_force_kg:g}")
+                    self._brake_sensor_changed()
+                hb_status, _ = receiver.handbrake_sensor_snapshot()
+                if hb_status is not None:
+                    cfg = hb_status.config
+                    desired_hb_mode = "load_cell" if cfg.mode == 2 else "hall"
+                    if self.handbrake_sensor.currentData() != desired_hb_mode:
+                        self.handbrake_sensor.setCurrentIndex(max(0, self.handbrake_sensor.findData(desired_hb_mode)))
+                    self.handbrake_capacity.setText(f"{cfg.capacity_kg:g}")
+                    self.handbrake_max_force.setText(f"{cfg.max_force_kg:g}")
+                    self._handbrake_sensor_changed()
         rt = self.runtime
         if not rt:
             return
