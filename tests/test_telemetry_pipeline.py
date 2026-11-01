@@ -117,3 +117,42 @@ def test_acc_runtime_uses_existing_automatic_engineer():
 
     runtime = ACCRuntime()
     assert isinstance(runtime.engineer, AutomaticEngineer)
+
+
+
+def test_acc_runtime_feeds_converted_state_to_existing_engineer():
+    from types import SimpleNamespace
+    from src.acc_runtime import ACCRuntime
+
+    runtime = ACCRuntime()
+    runtime.start()
+
+    def sample(lap, fuel, last_lap_ms=None):
+        return SimpleNamespace(
+            source="ACC Shared Memory",
+            last_packet_monotonic=float(lap),
+            car="GT3",
+            track="Monza",
+            session=2,
+            lap_number=lap,
+            position=4,
+            speed_kph=190,
+            gear=4,
+            engine_rpm=6800,
+            throttle_percent=70,
+            brake_percent=10,
+            steering_percent=-12,
+            fuel_l=fuel,
+            fuel_percent=None,
+            flag_status=0,
+            best_lap_time_ms=99000,
+            last_lap_time_ms=last_lap_ms,
+            is_in_pit=False,
+            is_in_pit_lane=False,
+        )
+
+    assert runtime.update(sample(1, 50.0), now=1.0) == ()
+    messages = runtime.update(sample(2, 48.0, 99500), now=2.0)
+    assert any(message.key == "lap:2" for message in messages)
+    assert runtime.status.fuel_l == 48.0
+    runtime.stop()
