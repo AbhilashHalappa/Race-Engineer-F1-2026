@@ -458,6 +458,30 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         for name in extended_fields
         if hasattr(telemetry, name) and getattr(telemetry, name) is not None
     }
+    native_pages = dict(getattr(telemetry, "acc_native", ()) or ())
+    physics_raw = dict(native_pages.get("physics", ()) or ())
+    graphics_raw = dict(native_pages.get("graphics", ()) or ())
+    static_raw = dict(native_pages.get("static", ()) or ())
+    # Keep every decoded native channel accessible to overlays, diagnostics,
+    # radio handlers and future ACC-specific analysis without polluting F1 fields.
+    extended["acc_native"] = native_pages
+    extended["acc_physics"] = physics_raw
+    extended["acc_graphics"] = graphics_raw
+    extended["acc_static"] = static_raw
+    for key in (
+        "velocity", "heading", "pitch", "roll", "final_ff", "autoshifter_on",
+        "tyre_contact_point", "tyre_contact_normal", "tyre_contact_heading",
+        "current_time_str", "last_time_str", "best_time_str", "split_time_str",
+        "ideal_line_on", "setup_menu_visible", "main_display_index",
+        "secondary_display_index", "direction_left", "direction_right",
+        "front_brake_compound", "rear_brake_compound",
+    ):
+        if key in physics_raw:
+            extended[key] = physics_raw[key]
+        elif key in graphics_raw:
+            extended[key] = graphics_raw[key]
+        elif key in static_raw:
+            extended[key] = static_raw[key]
     extended["game_id"] = "acc"
     extended["car_model"] = car_name
     extended["track"] = track_name
