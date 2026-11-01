@@ -322,7 +322,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         4: "Time attack", 5: "Drift", 6: "Drag", 7: "Hotstint",
         8: "Hotstint superpole",
     }
-    rain_names = {0: "Dry", 1: "Drizzle", 2: "Light rain", 3: "Medium rain", 4: "Heavy rain", 5: "Thunderstorm"}
+    rain_names = {0: "Dry", 1: "Drizzle", 2: "Light rain", 3: "Medium rain", 4: "Heavy rain"}
     grip_names = {0: "Green", 1: "Fast", 2: "Optimum", 3: "Greasy", 4: "Damp", 5: "Wet", 6: "Flooded"}
 
     session_type = enum(getattr(telemetry, "session_type", None), session_type_names)
