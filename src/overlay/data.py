@@ -1775,6 +1775,8 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
     session = getattr(state, "session", None)
     session_finished = _session_finished(state)
     track_name = _enum_name(getattr(session, "track", None)) if session is not None else None
+    is_acc_state = isinstance(extended, dict) and extended.get("game_id") == "acc"
+    map_track_name = f"ACC {track_name}" if is_acc_state and track_name else track_name
     track_length = getattr(session, "track_length_m", None) if session is not None else None
     if not _num(track_length) and reference:
         ref_samples = reference.get("_samples", {}) or {}
@@ -1812,9 +1814,9 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
     # Physical-track learning normally happens at the recorder's authoritative
     # lap boundary. Keep this lightweight first-map fallback for older/replayed
     # data paths that already contain a clean completed lap before the UI starts.
-    map_exists = bool(track_name and get_track_map(track_name) is not None)
-    map_has_distance_axis = bool(track_name and get_track_map_distances(track_name))
-    if track_name and (not map_exists or not map_has_distance_axis) and _num(track_length):
+    map_exists = bool(map_track_name and get_track_map(map_track_name) is not None)
+    map_has_distance_axis = bool(map_track_name and get_track_map_distances(map_track_name))
+    if not is_acc_state and track_name and (not map_exists or not map_has_distance_axis) and _num(track_length):
         for completed_lap in reversed(getattr(performance, "completed", ()) or ()):
             if not clean_geometry_lap(completed_lap):
                 continue
@@ -1822,7 +1824,9 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
                 map_exists=True;map_has_distance_axis=True
                 break
     map_learning_points = ()
-    if track_name and get_track_map(track_name) is None and bool(getattr(performance, "current_lap_started_clean", False)):
+    if is_acc_state:
+        map_learning_points = tuple(extended.get("acc_map_trace") or ())
+    elif track_name and get_track_map(track_name) is None and bool(getattr(performance, "current_lap_started_clean", False)):
         map_learning_points = live_map_trace(current_samples)
     coaching_status = extended.get("coaching_suite") if isinstance(extended, dict) else None
     corner_status = extended.get("corner_coach") if isinstance(extended, dict) else None
@@ -2037,9 +2041,9 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         brake_bias=(state.extended.get("brake_bias") if isinstance(getattr(state, "extended", None), dict) else None),
         turbo_boost=(state.extended.get("turbo_boost") if isinstance(getattr(state, "extended", None), dict) else None),
         wheel_slip=(tuple(state.extended.get("wheel_slip") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
-        car_damage=(tuple(state.extended.get("car_damage") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
-        brake_pad_life=(tuple(state.extended.get("brake_pad_life") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
-        brake_disc_life=(tuple(state.extended.get("brake_disc_life") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
+        car_damage=(tuple((state.extended.get("car_damage") or (state.extended.get("acc_physics") or {}).get("car_damage") or ())) if isinstance(getattr(state, "extended", None), dict) else ()),
+        brake_pad_life=(tuple((state.extended.get("brake_pad_life") or (state.extended.get("acc_physics") or {}).get("pad_life") or ())) if isinstance(getattr(state, "extended", None), dict) else ()),
+        brake_disc_life=(tuple((state.extended.get("brake_disc_life") or (state.extended.get("acc_physics") or {}).get("disc_life") or ())) if isinstance(getattr(state, "extended", None), dict) else ()),
         rain_intensity=(state.extended.get("rain_intensity") if isinstance(getattr(state, "extended", None), dict) else None),
         acc_telemetry=(state.extended.get("acc_native", ()) if isinstance(getattr(state, "extended", None), dict) else ()),
         setup_diff_on_throttle_percent=(float(getattr(setup_car, "m_onThrottle")) if setup_car is not None and _num(getattr(setup_car, "m_onThrottle", None)) else None),
@@ -2085,7 +2089,7 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         world_position_x=(float(getattr(motion_car, "m_worldPositionX")) if motion_car is not None and _num(getattr(motion_car, "m_worldPositionX", None)) else None),
         world_position_z=(float(getattr(motion_car, "m_worldPositionZ")) if motion_car is not None and _num(getattr(motion_car, "m_worldPositionZ", None)) else None),
         session_uid=getattr(session, "uid", None) if session is not None else None,
-        track_name=track_name,
+        track_name=map_track_name,
         reference_map_distance_m=reference_map_distance,
         map_nearby=nearby_map_markers,
         map_turns=_map_turn_markers(reference, track_name, track_length),
