@@ -691,15 +691,20 @@ def answer_intent(intent: VoiceIntent, state: RaceState, request_text: str | Non
             return "ACC acceleration vector: " + ", ".join(f"{v:.2f}" for v in valid) + " G." if len(valid) == 3 else "G force data unavailable."
         if intent == VoiceIntent.DAMAGE:
             values = data.get("car_damage")
-            if not isinstance(values, (tuple, list)):
+            if not isinstance(values, (tuple, list)) or not any(isinstance(v, (int, float)) for v in values):
                 values = (data.get("acc_physics") or {}).get("car_damage")
             if isinstance(values, (tuple, list)) and len(values) == 5 and any(isinstance(v, (int, float)) for v in values):
                 labels = ("front", "rear", "left", "right", "centre")
                 return "ACC car damage values: " + ", ".join(f"{label} {float(value):.3f}" for label, value in zip(labels, values) if isinstance(value, (int, float))) + "."
             return "ACC car damage data unavailable."
         if intent == VoiceIntent.BRAKE_DAMAGE:
+            physics = data.get("acc_physics") or {}
             pad = data.get("brake_pad_life")
             disc = data.get("brake_disc_life")
+            if not isinstance(pad, (tuple, list)) or not any(isinstance(v, (int, float)) for v in pad):
+                pad = physics.get("pad_life")
+            if not isinstance(disc, (tuple, list)) or not any(isinstance(v, (int, float)) for v in disc):
+                disc = physics.get("disc_life")
             if isinstance(pad, (tuple, list)) or isinstance(disc, (tuple, list)):
                 pad_values = [f"{float(v):.1f}" for v in pad if isinstance(v, (int, float))] if isinstance(pad, (tuple, list)) else []
                 disc_values = [f"{float(v):.1f}" for v in disc if isinstance(v, (int, float))] if isinstance(disc, (tuple, list)) else []
