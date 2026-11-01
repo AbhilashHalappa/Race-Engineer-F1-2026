@@ -1614,6 +1614,34 @@ def _race_engineer_overlay_data(state, tyre_life_estimate_laps: float | None) ->
     player = getattr(state, "player", None)
     session = getattr(state, "session", None)
     finished = _session_finished(state)
+    extended = getattr(state, "extended", None)
+    if isinstance(extended, dict) and extended.get("game_id") == "acc":
+        # F1 pit strategy assumptions (race distance, tyre wear and service
+        # windows) must not be applied to ACC until an ACC-specific strategy
+        # model has enough evidence. Continue showing the live measured facts.
+        lap = getattr(player, "lap", None) if player is not None else None
+        tyres = getattr(player, "tyres", None) if player is not None else None
+        fuel = getattr(player, "fuel", None) if player is not None else None
+        return RaceEngineerState(
+            applicable=False, decision="ACC STRATEGY NOT READY", urgency="unknown",
+            confidence="low", reason="ACC live telemetry is available; pit strategy is not yet calibrated",
+            position=getattr(lap, "position", None) if lap is not None else None,
+            lap_number=getattr(lap, "current_lap", None) if lap is not None else None,
+            total_laps=getattr(session, "total_laps", None) if session is not None else None,
+            laps_remaining=None,
+            current_compound=_enum_name(getattr(tyres, "visual_compound", None)) if tyres is not None else None,
+            tyre_age_laps=None, max_wear_percent=None, tyre_life_estimate_laps=None,
+            fuel_margin_laps=getattr(fuel, "remaining_laps", None) if fuel is not None else None,
+            fuel_remaining_mass=None, next_tyre_compound=None, next_tyre_set=None,
+            front_wing_damage_percent=None,
+            penalties_s=getattr(lap, "penalties_s", None) if lap is not None else None,
+            serve_penalty=None,
+            weather=_enum_name(getattr(session, "weather", None)) if session is not None else None,
+            rain_percent=None,
+            safety_car=None,
+            pit_status=_enum_name(getattr(lap, "pit_status", None)) if lap is not None else None,
+            session_finished=finished,
+        )
     try:
         plan = service_plan(state)
         pit = plan.pit
