@@ -6,6 +6,7 @@ constexpr uint32_t TELEMETRY_TIMEOUT_MS = 300;
 constexpr uint32_t SHIFT_FLASH_PERIOD_MS = 100;
 constexpr uint8_t LED_COUNT = 60;
 constexpr uint8_t LED_BRIGHTNESS = 70;
+constexpr uint8_t DISCONNECTED_LED_BRIGHTNESS = 204; // 80% of 255
 
 #define ENABLE_OTA 1
 #if ENABLE_OTA
