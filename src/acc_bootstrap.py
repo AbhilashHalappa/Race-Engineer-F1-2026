@@ -33,6 +33,7 @@ def install() -> None:
     from .acc_runtime import ACCRuntime
     from .telemetry_pipeline import telemetry_pipeline, frame_from_acc
     from .overlay.data import OverlayDataProvider, build_overlay_snapshot, build_input_snapshot
+    from .race_state.models import RaceState
 
     original_receiver_init = RaceStateReceiver.__init__
 
@@ -77,7 +78,7 @@ def install() -> None:
             else:
                 state = getattr(receiver, "acc_common_state", None)
             if state is None:
-                return original_input_snapshot(provider)
+                return build_input_snapshot(RaceState(), None, connected=False)
             runtime = getattr(receiver, "acc_runtime", None)
             stamp = getattr(getattr(runtime, "status", None), "last_packet_monotonic", None)
             connected = stamp is not None and now - stamp < 3.0
@@ -95,7 +96,7 @@ def install() -> None:
             else:
                 state = getattr(receiver, "acc_common_state", None)
             if state is None:
-                return original_overlay_snapshot(provider)
+                return provider._runtime_status(build_overlay_snapshot(RaceState(), None, connected=False, now=now))
             runtime = getattr(receiver, "acc_runtime", None)
             stamp = getattr(getattr(runtime, "status", None), "last_packet_monotonic", None)
             connected = stamp is not None and now - stamp < 3.0
@@ -200,9 +201,16 @@ def install() -> None:
             try:
                 return original_close(self, *args, **kwargs)
             finally:
-                if receiver is not None and getattr(self, "_acc_runtime_started", False):
-                    receiver.acc_runtime.stop()
-                    self._acc_runtime_started = False
+                if receiver is not None:
+                    if getattr(self, "_acc_runtime_started", False):
+                        receiver.acc_runtime.stop()
+                        self._acc_runtime_started = False
+                    lock = getattr(receiver, "_state_lock", None)
+                    if lock is not None:
+                        with lock:
+                            receiver.acc_common_state = None
+                    else:
+                        receiver.acc_common_state = None
 
         ACCSharedMemoryReader.close = reader_close
 
