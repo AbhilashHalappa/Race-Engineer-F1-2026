@@ -32,6 +32,7 @@ def main() -> int:
     selected_game = str((active_profile or {}).get("active_game") or "f1_26").strip().lower()
     if selected_game not in {"f1_26", "acc"}:
         selected_game = "f1_26"
+    print(f"[PROFILE] Active game selected at launch: {selected_game}", flush=True)
     if s.update_check_enabled:
         def _update_background():
             try:
