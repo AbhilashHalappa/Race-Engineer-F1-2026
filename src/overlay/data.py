@@ -2041,9 +2041,9 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         brake_bias=(state.extended.get("brake_bias") if isinstance(getattr(state, "extended", None), dict) else None),
         turbo_boost=(state.extended.get("turbo_boost") if isinstance(getattr(state, "extended", None), dict) else None),
         wheel_slip=(tuple(state.extended.get("wheel_slip") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
-        car_damage=(tuple((state.extended.get("car_damage") or (state.extended.get("acc_physics") or {}).get("car_damage") or ())) if isinstance(getattr(state, "extended", None), dict) else ()),
-        brake_pad_life=(tuple((state.extended.get("brake_pad_life") or (state.extended.get("acc_physics") or {}).get("pad_life") or ())) if isinstance(getattr(state, "extended", None), dict) else ()),
-        brake_disc_life=(tuple((state.extended.get("brake_disc_life") or (state.extended.get("acc_physics") or {}).get("disc_life") or ())) if isinstance(getattr(state, "extended", None), dict) else ()),
+        car_damage=(tuple(state.extended.get("car_damage") or ()) if isinstance(getattr(state, "extended", None), dict) and any(_num(v) for v in (state.extended.get("car_damage") or ())) else tuple((state.extended.get("acc_physics") or {}).get("car_damage") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
+        brake_pad_life=(tuple(state.extended.get("brake_pad_life") or ()) if isinstance(getattr(state, "extended", None), dict) and any(_num(v) for v in (state.extended.get("brake_pad_life") or ())) else tuple((state.extended.get("acc_physics") or {}).get("pad_life") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
+        brake_disc_life=(tuple(state.extended.get("brake_disc_life") or ()) if isinstance(getattr(state, "extended", None), dict) and any(_num(v) for v in (state.extended.get("brake_disc_life") or ())) else tuple((state.extended.get("acc_physics") or {}).get("disc_life") or ()) if isinstance(getattr(state, "extended", None), dict) else ()),
         rain_intensity=(state.extended.get("rain_intensity") if isinstance(getattr(state, "extended", None), dict) else None),
         acc_telemetry=(state.extended.get("acc_native", ()) if isinstance(getattr(state, "extended", None), dict) else ()),
         setup_diff_on_throttle_percent=(float(getattr(setup_car, "m_onThrottle")) if setup_car is not None and _num(getattr(setup_car, "m_onThrottle", None)) else None),
@@ -2083,9 +2083,8 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         engine_es_wear_percent=getattr(getattr(player, "damage", None), "engine_wear_percent", {}).get("ES") if player is not None else None,
         engine_blown=getattr(getattr(player, "damage", None), "engine_blown", None) if player is not None else None,
         engine_seized=getattr(getattr(player, "damage", None), "engine_seized", None) if player is not None else None,
-        # ACC world coordinates are retained in RaceState.extended, but are
-        # not plotted on the F1 map because the games use different coordinate
-        # systems and an F1 map would be a misleading reference.
+        # ACC world coordinates are plotted only against the namespaced ACC
+        # map learned from ACC Shared Memory, never against an F1 circuit map.
         world_position_x=(float(extended.get("world_position_x")) if is_acc_state and _num(extended.get("world_position_x")) else (float(getattr(motion_car, "m_worldPositionX")) if motion_car is not None and _num(getattr(motion_car, "m_worldPositionX", None)) else None)),
         world_position_z=(float(extended.get("world_position_z")) if is_acc_state and _num(extended.get("world_position_z")) else (float(getattr(motion_car, "m_worldPositionZ")) if motion_car is not None and _num(getattr(motion_car, "m_worldPositionZ", None)) else None)),
         session_uid=getattr(session, "uid", None) if session is not None else None,
