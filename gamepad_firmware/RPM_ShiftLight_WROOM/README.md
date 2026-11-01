@@ -20,7 +20,7 @@ Open this folder as an Arduino sketch and select an ESP32-WROOM board. Flash `RP
 - RPM 0–100% fills both sides symmetrically and retracts when RPM falls.
 - Position bands progress green, yellow, orange, then red.
 - The existing Race Engineer `shiftLight` flag flashes the complete bar white; white is not inferred from a full bar.
-- Missing telemetry for 300 ms clears the bar.
+- Missing telemetry for 300 ms switches all 60 LEDs to solid white normal-light mode.
 - Receiver uses ESP-NOW channel 1 and the compact checksummed 8-byte protocol in `RpmLedProtocol.h`.
 
 ## Receiver integration
