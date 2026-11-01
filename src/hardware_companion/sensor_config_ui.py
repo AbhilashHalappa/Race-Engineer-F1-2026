@@ -68,7 +68,7 @@ class SensorConfigurationWidget(QWidget):
         for button in buttons:
             row.addWidget(button)
         row.addStretch(1)
-        layout.addLayout(row)
+        layout.addRow(row)
 
     def _build_pedals(self):
         page = QWidget()
