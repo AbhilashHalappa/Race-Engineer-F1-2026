@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import time
 
 from .engineer import AutomaticEngineer
+from .engineer.models import EngineerMessage
 from .telemetry_pipeline import race_state_from_acc
 
 
@@ -109,6 +110,7 @@ class ACCRuntime:
 
         fuel = float(fuel)
         if self._fuel_start_l is None:
+            self.status.fuel_l = fuel
             self._fuel_start_l = fuel
             self._fuel_start_lap = lap
             self._last_lap = max(self._last_lap, lap)
