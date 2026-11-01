@@ -13,13 +13,16 @@ RESPONSE_MAGIC = b"PS"
 VERSION_V1 = 1
 VERSION_V2 = 2
 VERSION_V3 = 3
-VERSION = VERSION_V1
+VERSION_V4 = 4
+VERSION = VERSION_V4
 CMD_APPLY_VOLATILE = 1
 CMD_SAVE = 2
 CMD_REQUEST = 3
 CMD_RESET_DEFAULTS = 4
 FLAG_CLUTCH_ENABLED = 1 << 0
 FLAG_HANDBRAKE_ENABLED = 1 << 1
+FLAG_THROTTLE_ENABLED = 1 << 2
+FLAG_BRAKE_ENABLED = 1 << 3
 
 # V1 is byte-for-byte Wheel Companion Lite / Receiver V8.3.4+.
 COMMAND_V1_NO_CRC = struct.Struct("<2sBB16B")
@@ -37,6 +40,12 @@ COMMAND_V3_NO_CRC = struct.Struct("<2sBBB32B")
 COMMAND_V3_FRAME_SIZE = COMMAND_V3_NO_CRC.size + 1
 RESPONSE_V3_NO_CRC = struct.Struct("<2sBB32B")
 RESPONSE_V3_FRAME_SIZE = RESPONSE_V3_NO_CRC.size + 1
+
+# V4 reuses the V3 payload layout; its feature byte adds T/B enable flags.
+COMMAND_V4_NO_CRC = struct.Struct("<2sBBB32B")
+COMMAND_V4_FRAME_SIZE = COMMAND_V4_NO_CRC.size + 1
+RESPONSE_V4_NO_CRC = struct.Struct("<2sBB32B")
+RESPONSE_V4_FRAME_SIZE = RESPONSE_V4_NO_CRC.size + 1
 
 # Backward-compatible aliases retained for existing tests/tools.
 COMMAND_NO_CRC = COMMAND_V1_NO_CRC
@@ -111,6 +120,8 @@ class PedalCurveSettings:
     clutch_enabled: bool = False
     handbrake: AxisCurve = AxisCurve()
     handbrake_enabled: bool = False
+    throttle_enabled: bool = True
+    brake_enabled: bool = True
 
     def sanitized(self) -> "PedalCurveSettings":
         return PedalCurveSettings(
@@ -120,6 +131,8 @@ class PedalCurveSettings:
             bool(self.clutch_enabled),
             self.handbrake.sanitized(),
             bool(self.handbrake_enabled),
+            bool(self.throttle_enabled),
+            bool(self.brake_enabled),
         )
 
 
@@ -130,10 +143,13 @@ def _axis_bytes(axis: AxisCurve) -> list[int]:
 
 def encode_command(command: int, settings: PedalCurveSettings | None = None, *, version: int = VERSION_V1) -> bytes:
     clean = (settings or PedalCurveSettings()).sanitized()
-    if version == VERSION_V3:
+    if version in (VERSION_V3, VERSION_V4):
         flags = (FLAG_CLUTCH_ENABLED if clean.clutch_enabled else 0) | (FLAG_HANDBRAKE_ENABLED if clean.handbrake_enabled else 0)
+        if version == VERSION_V4:
+            flags |= (FLAG_THROTTLE_ENABLED if clean.throttle_enabled else 0) | (FLAG_BRAKE_ENABLED if clean.brake_enabled else 0)
         payload = _axis_bytes(clean.throttle) + _axis_bytes(clean.brake) + _axis_bytes(clean.clutch) + _axis_bytes(clean.handbrake)
-        body = COMMAND_V3_NO_CRC.pack(COMMAND_MAGIC, VERSION_V3, int(command) & 0xFF, flags, *payload)
+        packer = COMMAND_V4_NO_CRC if version == VERSION_V4 else COMMAND_V3_NO_CRC
+        body = packer.pack(COMMAND_MAGIC, version, int(command) & 0xFF, flags, *payload)
     elif version == VERSION_V2:
         flags = FLAG_CLUTCH_ENABLED if clean.clutch_enabled else 0
         payload = _axis_bytes(clean.throttle) + _axis_bytes(clean.brake) + _axis_bytes(clean.clutch)
@@ -151,6 +167,8 @@ def response_frame_size_for_version(version: int) -> int | None:
         return RESPONSE_V2_FRAME_SIZE
     if version == VERSION_V3:
         return RESPONSE_V3_FRAME_SIZE
+    if version == VERSION_V4:
+        return RESPONSE_V4_FRAME_SIZE
     return None
 
 
@@ -177,10 +195,10 @@ def decode_response(frame: bytes) -> tuple[PedalCurveSettings, int] | None:
         brake = AxisCurve(payload[8], payload[9], tuple(payload[10:16]))
         clutch = AxisCurve(payload[16], payload[17], tuple(payload[18:24]))
         return PedalCurveSettings(throttle, brake, clutch=clutch, clutch_enabled=bool(flags & FLAG_CLUTCH_ENABLED)).sanitized(), version
-    unpacked = RESPONSE_V3_NO_CRC.unpack(body)
+    unpacked = (RESPONSE_V4_NO_CRC if version == VERSION_V4 else RESPONSE_V3_NO_CRC).unpack(body)
     flags = int(unpacked[2]); payload = list(unpacked[3:])
     throttle = AxisCurve(payload[0], payload[1], tuple(payload[2:8]))
     brake = AxisCurve(payload[8], payload[9], tuple(payload[10:16]))
     clutch = AxisCurve(payload[16], payload[17], tuple(payload[18:24]))
     handbrake = AxisCurve(payload[24], payload[25], tuple(payload[26:32]))
-    return PedalCurveSettings(throttle, brake, clutch, bool(flags & FLAG_CLUTCH_ENABLED), handbrake, bool(flags & FLAG_HANDBRAKE_ENABLED)).sanitized(), version
+    return PedalCurveSettings(throttle, brake, clutch, bool(flags & FLAG_CLUTCH_ENABLED), handbrake, bool(flags & FLAG_HANDBRAKE_ENABLED), bool(flags & FLAG_THROTTLE_ENABLED) if version == VERSION_V4 else True, bool(flags & FLAG_BRAKE_ENABLED) if version == VERSION_V4 else True).sanitized(), version
