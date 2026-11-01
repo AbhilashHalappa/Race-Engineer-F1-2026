@@ -887,7 +887,7 @@ def answer_intent(intent: VoiceIntent, state: RaceState) -> str:
     if intent == VoiceIntent.TYRE_STATUS:
         # Generic tyre radio mirrors brake info: concise by default. Exact numbers
         # remain available through tyre temperatures / wear / pressure / damage.
-        wear=car.tyres.wear_percent; damage=car.tyres.damage_percent; temp=car.tyres.surface_temperature_c
+        wear=car.tyres.wear_percent; damage=car.tyres.damage_percent; temp=car.tyres.surface_temperature_c or getattr(car.tyres, "core_temperature_c", None)
         issues=[]
         if damage:
             vals=[(getattr(damage,k),k) for k in ('FL','FR','RL','RR') if getattr(damage,k) is not None]
