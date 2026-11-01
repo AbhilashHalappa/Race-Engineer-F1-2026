@@ -211,12 +211,13 @@ class SensorConfigurationWidget(QWidget):
     def _apply_pedal_readback(self, status):
         cfg = status.config
         for axis in ("throttle", "brake", "clutch"):
-            f = self.pedal_fields[axis]; mode = getattr(cfg, f"{axis}_mode"); f["mode"].setCurrentIndex(max(0, f["mode"].findData(mode))); f["capacity"].setText(str(getattr(cfg, f"{axis}_capacity_kg"))); f["force"].setText(str(getattr(cfg, f"{axis}_max_force_kg"))); f["counts"].setText(str(getattr(cfg, f"{axis}_counts_per_kg"))); f["filter"].setText(str(getattr(cfg, f"{axis}_filter_divisor"))); f["invert"].setChecked(bool(cfg.flags & (1 << {"throttle": 0, "brake": 1, "clutch": 2}[axis]))); self._mode_changed(axis)
-            self.pedal_axis_status[axis].setText(f"Device confirmed · raw delta {getattr(status, axis + '_raw_delta')} · output {getattr(status, axis + '_output')} · {status.result_text}")
-        self.pedal_status.setText(f"Pedal ESP32 readback · sequence {status.sequence} · {status.result_text}"); self._persist_pedal_config(cfg)
+            f = self.pedal_fields[axis]; mode = getattr(cfg, f"{axis}_mode"); f["mode"].setCurrentIndex(max(0, f["mode"].findData(mode))); f["capacity"].setText(str(getattr(cfg, f"{axis}_capacity_kg"))); f["force"].setText(str(getattr(cfg, f"{axis}_max_force_kg"))); f["counts"].setText(str(getattr(cfg, f"{axis}_counts_per_kg"))); f["filter"].setText(str(getattr(cfg, f"{axis}_filter_divisor"))); f["invert"].setChecked(bool(cfg.flags & (1 << {"throttle": 0, "brake": 1, "clutch": 2}[axis]))); self._mode_changed(axis); self.pedal_axis_status[axis].setText(f"Device confirmed · raw delta {getattr(status, axis + '_raw_delta')} · output {getattr(status, axis + '_output')} · {status.result_text}")
+        self.pedal_status.setText(f"Pedal ESP32 readback · sequence {status.sequence} · {status.result_text}")
+        self._persist_pedal_config(cfg)
 
     def _build_handbrake(self):
-        page = QWidget(); layout = QVBoxLayout(page); self.hb_fields = {}; form = QFormLayout()
+        page = QWidget(); layout = QVBoxLayout(page)
+        self.hb_fields = {}; form = QFormLayout(); self.hb_form = form
         self.hb_fields["mode"] = QComboBox(); self.hb_fields["mode"].addItem("Hall position sensor", MODE_HALL); self.hb_fields["mode"].addItem("HX711 load cell", HB_MODE_HX711)
         self.hb_fields["capacity"] = self._field(self.settings.get("handbrake_load_cell_capacity_kg", 40), minimum=1, maximum=1000); self.hb_fields["force"] = self._field(self.settings.get("handbrake_max_force_kg", 40), minimum=0.1, maximum=1000); self.hb_fields["counts"] = self._field(self.settings.get("handbrake_counts_per_kg", 25000), minimum=1); self.hb_fields["filter"] = self._field(self.settings.get("handbrake_filter_divisor", 4), integer=True, minimum=1, maximum=32)
         self.hb_fields["invert"] = QCheckBox("Reverse sensor polarity"); self.hb_fields["invert"].setChecked(bool(self.settings.get("handbrake_invert", False))); self.hb_fields["known"] = self._field(5.0, minimum=0.1, maximum=1000, width=90); self.hb_fields["enable"] = self._enable_button("handbrake")
@@ -228,7 +229,7 @@ class SensorConfigurationWidget(QWidget):
         self.hb_fields["mode"].currentIndexChanged.connect(self._handbrake_mode_changed); self.hb_read.clicked.connect(self._request_handbrake); self.hb_save.clicked.connect(self._save_handbrake); self.hb_tare.clicked.connect(self._tare_handbrake); self.hb_calibrate.clicked.connect(self._calibrate_handbrake); self.hb_reset.clicked.connect(self._reset_handbrake); self._handbrake_mode_changed(); layout.addStretch(1); self.tabs.addTab(page, "HANDBRAKE")
 
     def _handbrake_mode_changed(self, *_):
-        load_cell = self.hb_fields["mode"].currentData() == HB_MODE_HX711; form = self.hb_fields["mode"].parentWidget().layout()
+        load_cell = self.hb_fields["mode"].currentData() == HB_MODE_HX711; form = self.hb_form
         for key in ("capacity", "force", "counts", "filter", "known"):
             widget = self.hb_fields[key]; widget.setVisible(load_cell); label = form.labelForField(widget)
             if label is not None: label.setVisible(load_cell)
@@ -269,56 +270,18 @@ class SensorConfigurationWidget(QWidget):
         if cfg.mode != HB_MODE_HX711: self.hb_status.setText("Calibration requires HX711 mode"); return
         self._send_handbrake(HB_CALIBRATE, cfg, force)
 
-    def _reset_handbrake(self): self._send_handbrake(HB_RESET_DEFAULTS); self.hb_status.setText("Reset requested · waiting for C3 defaults readback")
+    def _reset_handbrake(self):
+        self._send_handbrake(HB_RESET_DEFAULTS); self.hb_status.setText("Reset requested · waiting for C3 defaults readback")
 
     def _apply_handbrake_readback(self, status):
-        cfg = status.config; f = self.hb_fields; f["mode"].setCurrentIndex(max(0, f["mode"].findData(cfg.mode))); f["capacity"].setText(str(cfg.capacity_kg)); f["force"].setText(str(cfg.max_force_kg)); f["counts"].setText(str(cfg.counts_per_kg)); f["filter"].setText(str(cfg.filter_divisor)); f["invert"].setChecked(cfg.invert); self._handbrake_mode_changed()
+        cfg = status.config; f = self.hb_fields
+        f["mode"].setCurrentIndex(max(0, f["mode"].findData(cfg.mode))); f["capacity"].setText(str(cfg.capacity_kg)); f["force"].setText(str(cfg.max_force_kg)); f["counts"].setText(str(cfg.counts_per_kg)); f["filter"].setText(str(cfg.filter_divisor)); f["invert"].setChecked(cfg.invert); self._handbrake_mode_changed()
         self.settings.update({"handbrake_sensor_mode": "load_cell" if cfg.mode == HB_MODE_HX711 else "hall", "handbrake_load_cell_capacity_kg": cfg.capacity_kg, "handbrake_max_force_kg": cfg.max_force_kg, "handbrake_counts_per_kg": cfg.counts_per_kg, "handbrake_filter_divisor": cfg.filter_divisor, "handbrake_invert": cfg.invert}); save_settings(self.settings)
         self.hb_status.setText(f"Handbrake C3 readback · {'HX711' if cfg.mode == HB_MODE_HX711 else 'Hall'} · {cfg.capacity_kg:g} kg cell · {cfg.max_force_kg:g} kg full scale · {cfg.counts_per_kg:g} counts/kg · filter {cfg.filter_divisor} · {'inverted' if cfg.invert else 'normal'} · raw {status.raw_delta} · output {status.output} · {status.result_text}")
-
-    def _axis_enable_toggled(self, axis: str, enabled: bool, button: QPushButton):
-        self._update_enable_button(button, axis, enabled)
-        self.settings[f"{axis}_enabled"] = bool(enabled); save_settings(self.settings)
-        receiver = getattr(self.runtime, "receiver", None)
-        if receiver is None or not receiver.health_snapshot().serial_connected: return
-        settings, supported, _stamp, version = receiver.pedal_settings_snapshot()
-        if not supported: return
-        if enabled:
-            curve = self._curve_cache.get(axis, getattr(settings, axis))
-        else:
-            curve = getattr(settings, axis)
-            self._curve_cache[axis] = curve
-            curve = AxisCurve(curve.bottom_deadzone, curve.top_deadzone, (0, 0, 0, 0, 0, 0))
-        kwargs = {"throttle": settings.throttle, "brake": settings.brake, "clutch": settings.clutch, "clutch_enabled": settings.clutch_enabled, "handbrake": settings.handbrake, "handbrake_enabled": settings.handbrake_enabled}
-        kwargs[axis] = curve
-        if axis == "clutch": kwargs["clutch_enabled"] = bool(enabled)
-        if axis == "handbrake": kwargs["handbrake_enabled"] = bool(enabled)
-        updated = PedalCurveSettings(**kwargs).sanitized()
-        receiver.apply_pedal_settings(updated, save=False)
-        self._curve_stamp = None
-
-    def _sync_enable_state(self, receiver):
-        settings, supported, stamp, _version = receiver.pedal_settings_snapshot()
-        if not supported or stamp is None: return
-        desired = {a: bool(self.settings.get(f"{a}_enabled", a not in ("clutch", "handbrake"))) for a in self.AXES}
-        if not self._enable_sync_done or stamp != self._curve_stamp:
-            self._curve_stamp = stamp; self._enable_sync_done = True
-            current = settings
-            for axis in self.AXES:
-                enabled = desired[axis]
-                button = self.pedal_fields[axis]["enable"] if axis in self.pedal_fields else self.hb_fields["enable"]
-                button.blockSignals(True); button.setChecked(enabled); self._update_enable_button(button, axis, enabled); button.blockSignals(False)
-                if not enabled and axis in ("throttle", "brake"):
-                    curve = getattr(current, axis); self._curve_cache.setdefault(axis, curve)
-                    current = replace(current, **{axis: AxisCurve(curve.bottom_deadzone, curve.top_deadzone, (0, 0, 0, 0, 0, 0))})
-            if not desired["clutch"]: current = replace(current, clutch_enabled=False)
-            if not desired["handbrake"]: current = replace(current, handbrake_enabled=False)
-            if current != settings: receiver.apply_pedal_settings(current, save=False)
 
     def poll(self):
         receiver = getattr(self.runtime, "receiver", None)
         if receiver is None: return
-        self._sync_enable_state(receiver)
         pedal_status, pedal_stamp = receiver.pedal_sensor_snapshot()
         if pedal_status is not None and pedal_stamp != self._pedal_stamp:
             self._pedal_stamp = pedal_stamp; self._apply_pedal_readback(pedal_status)
