@@ -39,7 +39,7 @@ def _verify_reference_compiler_runtime() -> tuple[bool, str]:
     return (not problems, "; ".join(problems) if problems else str(actual_path))
 
 
-def main(*, host="0.0.0.0", udp_port=20777, show_sizes=False, packet_stats=False, capture_packets=0, engineer_only=False,
+def main(*, game="f1_26", host="0.0.0.0", udp_port=20777, show_sizes=False, packet_stats=False, capture_packets=0, engineer_only=False,
          tts_enabled=True, tts_backend="piper", tts_model="voices/en_GB-alan-medium.onnx",
          tts_speed=0.82, tts_volume=100, audio_device=None, ers_assist=True, drs_s_mode_assist=True, position_updates=False,
          ptt_enabled=False, ptt_controller=0, ptt_button=6, mic_device=None, ptt_backend="hid",
@@ -67,6 +67,52 @@ def main(*, host="0.0.0.0", udp_port=20777, show_sizes=False, packet_stats=False
         print(f"[SERVER SYNC] Local fallback: {_sync_start_error}", flush=True)
     if sys.version_info < (3, 11):
         print("Race Engineer requires Python 3.11 or newer.", file=sys.stderr); return 1
+    selected_game = str(game or "f1_26").strip().lower()
+    if selected_game not in {"f1_26", "acc"}:
+        print(f"Unsupported telemetry game: {selected_game}", file=sys.stderr)
+        return 2
+    if selected_game == "acc":
+        if sys.platform != "win32":
+            print("ACC telemetry requires Windows Shared Memory.", file=sys.stderr)
+            return 1
+        from .acc_telemetry import ACCSharedMemoryReader
+        from .wheel_telemetry import WheelTelemetryBridge
+        bridge = WheelTelemetryBridge(enabled=wheel_telemetry, port=wheel_port)
+        reader = ACCSharedMemoryReader(on_snapshot=bridge.update)
+        print("=" * 60)
+        print("RACE ENGINEER — ACC TELEMETRY BRIDGE (STAGE 1)")
+        print("=" * 60)
+        print("Game        : Assetto Corsa Competizione")
+        print("Source      : ACC Shared Memory (Physics / Graphics / Static)")
+        print(f"Wheel link  : {'Disabled' if not wheel_telemetry else (wheel_port or 'Auto-detect receiver COM')}")
+        print("Coaching    : Not enabled for ACC in Stage 1")
+        print("Start ACC and enter a driving session. Press Ctrl+C to stop.")
+        try:
+            bridge.start()
+            reader.start()
+            last_error = None
+            last_report = 0.0
+            while True:
+                time.sleep(0.25)
+                live, _wheel = reader.snapshots()
+                error = reader.last_error
+                if error and error != last_error:
+                    print(f"[ACC] Waiting for Shared Memory: {error}", flush=True)
+                elif not error and live.total_packets and time.monotonic() - last_report >= 2.0:
+                    print(
+                        f"[ACC] Connected | {live.speed_kph:.0f} km/h | "
+                        f"Gear {live.gear} | {live.engine_rpm} rpm | "
+                        f"Throttle {live.throttle_percent}% | Brake {live.brake_percent}%",
+                        flush=True,
+                    )
+                    last_report = time.monotonic()
+                last_error = error
+        except KeyboardInterrupt:
+            print("\\n[ACC] Stopping telemetry bridge...", flush=True)
+        finally:
+            reader.close(wait=True)
+            bridge.close(wait=True)
+        return 0
     compiler_ok,compiler_info=_verify_reference_compiler_runtime()
     if not compiler_ok:
         print(f"REFERENCE COMPILER SELF-CHECK FAILED: {compiler_info}",file=sys.stderr)
@@ -181,6 +227,7 @@ def main(*, host="0.0.0.0", udp_port=20777, show_sizes=False, packet_stats=False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Race Engineer Stable V2 / V2.0.0")
+    parser.add_argument("--game", choices=("f1_26", "acc"), default="f1_26", help="Telemetry source: f1_26 (default) or acc (Stage 1 wheel telemetry only)")
     parser.add_argument("--show-sizes", action="store_true")
     parser.add_argument("--packet-stats", action="store_true")
     parser.add_argument("--latency-stats", action="store_true", help="Print rolling packet->decision/radio latency every second")
@@ -285,7 +332,7 @@ if __name__ == "__main__":
         parser.error("--overlay + --ptt is supported with the raw HID backend only; pygame joystick polling requires the main UI thread")
     if not 0.5 <= args.tts_speed <= 2.0: parser.error("--tts-speed must be 0.5..2.0")
     if not 0 <= args.tts_volume <= 100: parser.error("--tts-volume must be 0..100")
-    raise SystemExit(main(show_sizes=args.show_sizes, packet_stats=args.packet_stats,
+    raise SystemExit(main(game=args.game, show_sizes=args.show_sizes, packet_stats=args.packet_stats,
         capture_packets=args.capture_packets, engineer_only=args.engineer_only,
         tts_enabled=not args.no_tts, tts_backend=args.tts_backend,
         tts_model=args.tts_model, tts_speed=args.tts_speed, tts_volume=args.tts_volume, audio_device=args.audio_device,
