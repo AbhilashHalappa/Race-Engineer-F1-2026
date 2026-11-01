@@ -338,6 +338,10 @@ def test_acc_adapter_preserves_native_damage_values_and_radio_reports_them():
     state = race_state_from_acc(live)
 
     assert state.player.damage.acc_values == (0.12, 0.04, 0.01, 0.02, 0.0)
+    # The typed RaceState damage adapter remains sufficient even if the raw
+    # extended/native page is not attached to a later consumer snapshot.
+    state.extended.pop("car_damage", None)
+    state.extended.pop("acc_physics", None)
     answer = handle_voice_request("car damage", state)
     assert "front 0.120" in answer.response
     assert "rear 0.040" in answer.response
