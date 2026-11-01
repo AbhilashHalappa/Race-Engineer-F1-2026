@@ -150,6 +150,11 @@ def _array(values):
     return tuple(_finite(v) for v in values)
 
 
+def _matrix4x3(values):
+    flat = tuple(values)
+    return tuple(tuple(_finite(flat[i * 3 + j]) for j in range(3)) for i in range(4))
+
+
 def _wide(values):
     raw = bytes().join(int(v).to_bytes(2, "little") for v in values)
     return raw.decode("utf-16-le", errors="ignore").split("\x00", 1)[0].strip()
@@ -165,13 +170,17 @@ def decode_physics_extended(data: bytes) -> dict:
         "gear_raw": int(p.gear_raw), "rpm": int(p.rpm),
         "steering": _finite(p.steering), "speed_kph": _finite(p.speed_kph),
         "velocity": _array(p.velocity), "acc_g": _array(p.acc_g),
+        "heading": _finite(p.heading), "pitch": _finite(p.pitch), "roll": _finite(p.roll),
+        "final_ff": _finite(p.final_ff), "autoshifter_on": bool(p.autoshifter_on),
+        "tyre_contact_point": _matrix4x3(p.tyre_contact_point),
+        "tyre_contact_normal": _matrix4x3(p.tyre_contact_normal),
+        "tyre_contact_heading": _matrix4x3(p.tyre_contact_heading),
         "wheel_slip": _array(p.wheel_slip), "wheel_load": None,  # ACC marks wheelLoad as unused
         "tyre_pressure_psi": _array(p.tyre_pressure_psi),
         "wheel_angular_speed": _array(p.wheel_angular_speed),
         "tyre_dirty": None,  # ACC marks tyreDirtyLevel as unused
         "tyre_core_temp_c": _array(p.tyre_core_temp_c),
         "suspension_travel": _array(p.suspension_travel), "tc": _finite(p.tc),
-        "heading": _finite(p.heading), "pitch": _finite(p.pitch), "roll": _finite(p.roll),
         "car_damage": _array(p.car_damage), "pit_limiter_on": bool(p.pit_limiter_on),
         "abs": _finite(p.abs), "turbo_boost": _finite(p.turbo_boost),
         "air_temp_c": _finite(p.air_temp_c), "road_temp_c": _finite(p.road_temp_c),
@@ -203,6 +212,8 @@ def decode_graphics_extended(data: bytes) -> dict:
         player_position = coords[ids.index(int(g.player_car_id))]
     return {
         "packet_id": int(g.packet_id), "status": int(g.status), "session": int(g.session),
+        "current_time_str": _wide(g.current_time), "last_time_str": _wide(g.last_time),
+        "best_time_str": _wide(g.best_time), "split_time_str": _wide(g.split),
         "current_time_ms": int(g.current_time_ms), "last_time_ms": int(g.last_time_ms),
         "best_time_ms": int(g.best_time_ms), "session_time_left_s": _finite(g.session_time_left_s),
         "distance_traveled_m": _finite(g.distance_traveled_m), "completed_laps": int(g.completed_laps),
@@ -213,9 +224,13 @@ def decode_graphics_extended(data: bytes) -> dict:
         "active_cars": int(g.active_cars), "player_car_id": int(g.player_car_id),
         "car_ids": ids, "car_coordinates": coords, "player_world_position": player_position,
         "penalty_time_s": _finite(g.penalty_time_s), "flag": int(g.flag),
-        "penalty": int(g.penalty), "is_in_pit_lane": bool(g.is_in_pit_lane),
+        "penalty": int(g.penalty), "ideal_line_on": bool(g.ideal_line_on),
+        "is_in_pit_lane": bool(g.is_in_pit_lane),
         "surface_grip": _finite(g.surface_grip), "mandatory_pit_done": bool(g.mandatory_pit_done),
         "wind_speed": _finite(g.wind_speed), "wind_direction": _finite(g.wind_direction),
+        "setup_menu_visible": bool(g.setup_menu_visible),
+        "main_display_index": int(g.main_display_index),
+        "secondary_display_index": int(g.secondary_display_index),
         "tc_level": int(g.tc_level), "tc_cut": int(g.tc_cut), "engine_map": int(g.engine_map),
         "abs_level": int(g.abs_level), "fuel_per_lap": _finite(g.fuel_per_lap),
         "rain_lights": bool(g.rain_lights), "flashing_lights": bool(g.flashing_lights),
@@ -240,6 +255,7 @@ def decode_graphics_extended(data: bytes) -> dict:
         "player_car_id": int(g.player_car_id), "mfd_tyre_set": int(g.mfd_tyre_set),
         "mfd_fuel_to_add": _finite(g.mfd_fuel_to_add),
         "mfd_tyre_pressures": _array((g.mfd_pressure_fl, g.mfd_pressure_fr, g.mfd_pressure_rl, g.mfd_pressure_rr)),
+        "direction_left": bool(g.direction_left), "direction_right": bool(g.direction_right),
         "track_grip_status": int(g.track_grip_status), "rain_intensity": int(g.rain_intensity),
         "rain_10min": int(g.rain_10min), "rain_30min": int(g.rain_30min),
         "current_tyre_set": int(g.current_tyre_set), "strategy_tyre_set": int(g.strategy_tyre_set),
