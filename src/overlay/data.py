@@ -467,7 +467,7 @@ class OverlaySnapshot:
     brake_pad_life: tuple[float | None, ...] = ()
     brake_disc_life: tuple[float | None, ...] = ()
     rain_intensity: int | None = None
-    acc_telemetry: tuple = ()
+    acc_telemetry: dict | tuple = ()
     # V0.9.19.1 dashboard setup strip. Direct EA car-setup packet values only.
     setup_diff_on_throttle_percent: float | None = None
     setup_diff_off_throttle_percent: float | None = None
