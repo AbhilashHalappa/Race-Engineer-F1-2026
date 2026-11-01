@@ -32,6 +32,7 @@ class TelemetryFrame:
     brake: float | None = None
     steering: float | None = None
     fuel_l: float | None = None
+    fuel_capacity_l: float | None = None
     fuel_remaining_laps: float | None = None
     current_lap_time_s: float | None = None
     last_lap_time_s: float | None = None
@@ -176,6 +177,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         brake=_percent_fraction(getattr(telemetry, "brake_percent", None)),
         steering=_signed_percent_fraction(getattr(telemetry, "steering_percent", None)),
         fuel_l=_optional_float(getattr(telemetry, "fuel_l", None)),
+        fuel_capacity_l=_optional_float(getattr(telemetry, "max_fuel_l", None)),
         fuel_remaining_laps=_optional_float(getattr(telemetry, "fuel_estimated_laps", None)),
         last_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
         best_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "best_lap_time_ms", None)),
@@ -216,7 +218,7 @@ def frame_from_acc(telemetry, *, now: float | None = None) -> TelemetryFrame:
         rain_intensity_30min=_optional_int(getattr(telemetry, "rain_intensity_30min", None)),
         wind_speed_mps=_optional_float(getattr(telemetry, "wind_speed_mps", None)),
         extras=tuple((name, getattr(telemetry, name, None)) for name in (
-            "fuel_l", "tyre_compound", "car", "track", "session", "penalty_type",
+            "fuel_l", "max_fuel_l", "tyre_compound", "car", "track", "session", "penalty_type",
             "brake_pad_life", "brake_disc_life", "turbo_boost", "used_fuel_l",
             "rain_tyres", "mandatory_pit_done", "missing_mandatory_pits",
             "driver_stint_left_ms", "driver_stint_total_ms", "gap_ahead_ms",
