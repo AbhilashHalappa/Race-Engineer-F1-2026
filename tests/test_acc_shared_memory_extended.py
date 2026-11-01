@@ -91,7 +91,7 @@ def test_acc_static_layout_decodes_car_track_and_player_identity():
     _put_wide(page.track, "monza")
     _put_wide(page.player_nickname, "Driver")
     page.max_rpm = 8500
-    page.max_fuel_l = 120.0
+    page.max_fuel_kg = 120.0
     page.pit_window_start = 10
     page.pit_window_end = 20
 
