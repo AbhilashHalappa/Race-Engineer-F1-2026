@@ -423,6 +423,7 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
         "strategy_tyre_set", "exhaust_temperature_c", "engine_running", "ignition_on",
         "is_ai_controlled", "g_force", "local_velocity", "local_angular_velocity",
         "session_time_left_s", "normalized_car_position", "lap_distance_m", "lap_valid", "sector",
+        "flag_status", "is_in_pit", "is_in_pit_lane", "session", "car",
         "current_lap_time_ms", "session_type", "number_of_laps", "position", "lap_number",
     )
     extended = {
