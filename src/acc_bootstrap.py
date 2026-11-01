@@ -32,12 +32,14 @@ def install() -> None:
     from .acc_telemetry import ACCSharedMemoryReader
     from .acc_runtime import ACCRuntime
     from .telemetry_pipeline import telemetry_pipeline, frame_from_acc
+    from .overlay.data import OverlayDataProvider, build_overlay_snapshot, build_input_snapshot
 
     original_receiver_init = RaceStateReceiver.__init__
 
     def receiver_init(self, *args, **kwargs):
         original_receiver_init(self, *args, **kwargs)
         self.acc_runtime = ACCRuntime()
+        self.acc_common_state = None
         with _lock:
             _receivers_by_bridge[id(self.wheel_bridge)] = self
 
@@ -53,6 +55,85 @@ def install() -> None:
         self._acc_receiver = _receiver_for_callback(callback)
         self._acc_last_engineer_at = 0.0
         self._acc_runtime_started = False
+
+    # Existing overlays consume the common RaceState contract. Select the
+    # ACC adapter state only while ACC is active; F1 keeps its native state and
+    # its own measured-performance history untouched.
+    if not getattr(OverlayDataProvider, "_acc_bootstrap_installed", False):
+        original_input_snapshot = OverlayDataProvider.input_snapshot
+        original_overlay_snapshot = OverlayDataProvider.snapshot
+
+        def input_snapshot(provider):
+            receiver = provider.receiver
+            if getattr(receiver, "_telemetry_mode", "live") != "acc":
+                return original_input_snapshot(provider)
+            now = time.monotonic()
+            lock = getattr(receiver, "_state_lock", None)
+            if lock is not None:
+                with lock:
+                    state = getattr(receiver, "acc_common_state", None)
+            else:
+                state = getattr(receiver, "acc_common_state", None)
+            if state is None:
+                return original_input_snapshot(provider)
+            runtime = getattr(receiver, "acc_runtime", None)
+            stamp = getattr(getattr(runtime, "status", None), "last_packet_monotonic", None)
+            connected = stamp is not None and now - stamp < 3.0
+            return build_input_snapshot(state, None, connected=connected)
+
+        def overlay_snapshot(provider):
+            receiver = provider.receiver
+            if getattr(receiver, "_telemetry_mode", "live") != "acc":
+                return original_overlay_snapshot(provider)
+            now = time.monotonic()
+            lock = getattr(receiver, "_state_lock", None)
+            if lock is not None:
+                with lock:
+                    state = getattr(receiver, "acc_common_state", None)
+            else:
+                state = getattr(receiver, "acc_common_state", None)
+            if state is None:
+                return original_overlay_snapshot(provider)
+            runtime = getattr(receiver, "acc_runtime", None)
+            stamp = getattr(getattr(runtime, "status", None), "last_packet_monotonic", None)
+            connected = stamp is not None and now - stamp < 3.0
+            return provider._runtime_status(
+                build_overlay_snapshot(state, None, connected=connected, now=now)
+            )
+
+        OverlayDataProvider.input_snapshot = input_snapshot
+        OverlayDataProvider.snapshot = overlay_snapshot
+        OverlayDataProvider._acc_bootstrap_installed = True
+
+    # Radio request handling already accepts RaceState. Temporarily supply the
+    # ACC-adapted state to that existing handler only for ACC PTT callbacks.
+    if not getattr(RaceStateReceiver, "_acc_voice_bootstrap_installed", False):
+        original_on_transcript = RaceStateReceiver._on_transcript
+
+        def on_transcript(self, *args, **kwargs):
+            if getattr(self, "_telemetry_mode", "live") != "acc" or getattr(self, "acc_common_state", None) is None:
+                return original_on_transcript(self, *args, **kwargs)
+            lock = getattr(self, "_state_lock", None)
+            if lock is None:
+                previous = self.engine.state
+                self.engine.state = self.acc_common_state
+            else:
+                with lock:
+                    previous = self.engine.state
+                    self.engine.state = self.acc_common_state
+            try:
+                return original_on_transcript(self, *args, **kwargs)
+            finally:
+                if lock is None:
+                    if self.engine.state is self.acc_common_state:
+                        self.engine.state = previous
+                else:
+                    with lock:
+                        if self.engine.state is self.acc_common_state:
+                            self.engine.state = previous
+
+        RaceStateReceiver._on_transcript = on_transcript
+        RaceStateReceiver._acc_voice_bootstrap_installed = True
 
     if not getattr(ACCSharedMemoryReader, "_acc_bootstrap_installed", False):
         ACCSharedMemoryReader.__init__ = reader_init
@@ -97,6 +178,7 @@ def install() -> None:
                 # ACC and F1 now publish the same immutable frame contract.
                 telemetry_pipeline.publish(frame_from_acc(live, now=now))
                 messages = receiver.acc_runtime.update(live, now)
+                receiver.acc_common_state = receiver.acc_runtime.latest_state
                 if messages and receiver.speech.config.enabled:
                     receiver.speech.submit(messages)
                 self._acc_last_engineer_at = now
