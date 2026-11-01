@@ -692,6 +692,8 @@ def answer_intent(intent: VoiceIntent, state: RaceState, request_text: str | Non
         if intent == VoiceIntent.DAMAGE:
             values = data.get("car_damage")
             if not isinstance(values, (tuple, list)) or not any(isinstance(v, (int, float)) for v in values):
+                values = getattr(getattr(car, "damage", None), "acc_values", None)
+            if not isinstance(values, (tuple, list)) or not any(isinstance(v, (int, float)) for v in values):
                 values = (data.get("acc_physics") or {}).get("car_damage")
             if isinstance(values, (tuple, list)) and len(values) == 5 and any(isinstance(v, (int, float)) for v in values):
                 labels = ("front", "rear", "left", "right", "centre")
