@@ -12,6 +12,7 @@ import os
 from .crash_reporting import install_crash_handler
 from .product_settings import ProductSettingsStore
 from .product_migration import create_upgrade_backup_if_needed
+from .driver_profiles import DriverProfileStore
 
 
 def main() -> int:
@@ -26,6 +27,11 @@ def main() -> int:
     parser.add_argument("--safe-mode",action="store_true",help="Start without PTT/wheel bridge")
     args=parser.parse_args()
     s=ProductSettingsStore().settings
+    # The active Driver Profile owns the selected game. Older installs default to F1.
+    active_profile = DriverProfileStore().active_profile()
+    selected_game = str((active_profile or {}).get("active_game") or "f1_26").strip().lower()
+    if selected_game not in {"f1_26", "acc"}:
+        selected_game = "f1_26"
     if s.update_check_enabled:
         def _update_background():
             try:
@@ -42,6 +48,7 @@ def main() -> int:
         threading.Timer(1.5,lambda:webbrowser.open(f"http://127.0.0.1:{s.dash_port}/setup")).start()
     from .main import main as run
     return int(run(
+        game=selected_game,
         udp_port=s.udp_port,
         tts_enabled=s.tts_enabled,
         audio_device=s.audio_device,
