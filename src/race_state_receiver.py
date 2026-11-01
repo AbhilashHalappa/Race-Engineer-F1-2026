@@ -1906,7 +1906,7 @@ class RaceStateReceiver(TelemetryReceiver):
             return
         self.speech.prepare_radio_response()
         print(f"[VOICE] Intent: {result.intent.value}", flush=True)
-        if result.intent == VoiceIntent.PIT_RECOMMENDATION:
+        if result.intent == VoiceIntent.PIT_RECOMMENDATION and not (isinstance(getattr(state, "extended", None), dict) and state.extended.get("game_id") == "acc"):
             # V0.9.14.3: a radio request must never go silent because the pit
             # strategy formatter hit an unexpected edge case.  The generic voice
             # answer is already safe for a missing live car, so preserve it when
