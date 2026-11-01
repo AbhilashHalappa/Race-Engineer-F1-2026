@@ -9,6 +9,10 @@ import threading
 import time
 
 from .hardware_companion.models import LiveTelemetry, WheelTelemetrySnapshot
+from .acc_shared_memory_extended import (
+    PHYSICS_SIZE, GRAPHICS_SIZE, STATIC_SIZE,
+    decode_physics_extended, decode_graphics_extended, decode_static_extended,
+)
 
 
 PHYSICS_MAP = r"Local\acpmf_physics"
@@ -204,16 +208,16 @@ class ACCSharedMemoryReader:
             try:
                 if self._mapping is None:
                     self._mapping = _SharedMemory(PHYSICS_MAP)
-                values = decode_physics_prefix(self._mapping.read(PHYSICS_PREFIX.size))
+                values = decode_physics_extended(self._mapping.read(PHYSICS_SIZE))
                 now = time.monotonic()
                 self._graphics = self._read_optional_page(
                     mapping_attr="_graphics_mapping", map_name=GRAPHICS_MAP,
-                    size=GRAPHICS_PREFIX_SIZE, decoder=decode_graphics_prefix,
+                    size=GRAPHICS_SIZE, decoder=decode_graphics_extended,
                     now=now, retry_attr="_next_graphics_retry",
                 ) or self._graphics
                 self._static = self._read_optional_page(
                     mapping_attr="_static_mapping", map_name=STATIC_MAP,
-                    size=STATIC_PREFIX_SIZE, decoder=decode_static_prefix,
+                    size=STATIC_SIZE, decoder=decode_static_extended,
                     now=now, retry_attr="_next_static_retry",
                 ) or self._static
                 if values["packet_id"] != self._last_packet_id:
@@ -240,22 +244,22 @@ class ACCSharedMemoryReader:
     def _publish(self, v, now, previous, graphics, static):
         speed = max(0, min(65535, int(round(v["speed_kph"]))))
         rpm = v["rpm"]
-        gear = v["gear"]
+        gear = max(-1, min(15, int(v["gear_raw"]) - 1))
         max_rpm = static["max_rpm"] if static else 0
         rpm_percent = max(0, min(100, int(round(rpm * 100.0 / max_rpm)))) if max_rpm > 0 else 0
         max_fuel = static["max_fuel_l"] if static else 0.0
-        fuel_l = v["fuel_l"]
+        fuel_l = max(0.0, float(v["fuel_l"] or 0.0))
         fuel_percent = round(max(0.0, min(100.0, fuel_l * 100.0 / max_fuel)), 1) if max_fuel > 0 else None
         if graphics:
             position = graphics["position"]
             completed_laps = graphics["completed_laps"]
-            flag_status = graphics["flag_status"]
+            flag_status = graphics["flag"]
             lap_number = completed_laps + 1 if graphics["status"] == 2 else completed_laps
         else:
             position = 0
             lap_number = 0
             flag_status = 0
-        steering_percent = int(round(max(-1.0, min(1.0, v["steering_angle"])) * 100.0))
+        steering_percent = int(round(max(-1.0, min(1.0, v["steering"])) * 100.0))
         shift_light = int(rpm_percent >= 95) if max_rpm > 0 else 0
         wheel = WheelTelemetrySnapshot(
             speed=speed, gear=gear, position=position, rpm_percent=rpm_percent,
@@ -290,6 +294,67 @@ class ACCSharedMemoryReader:
                 session_uid=0,
                 game_year=0,
                 last_packet_monotonic=now,
+                clutch_percent=int(round(max(0.0, min(1.0, v["clutch"] or 0.0)) * 100)),
+                current_lap_time_ms=(graphics.get("current_time_ms") if graphics else None),
+                session_time_left_s=(graphics.get("session_time_left_s") if graphics else None),
+                session_type=(graphics.get("session") if graphics else None),
+                sector=(graphics.get("sector") if graphics else None),
+                lap_valid=(graphics.get("is_valid_lap") if graphics else None),
+                normalized_car_position=(graphics.get("normalized_car_position") if graphics else None),
+                tyre_compound=(graphics.get("tyre_compound", "") if graphics else ""),
+                tyre_pressures_psi=v.get("tyre_pressure_psi"),
+                tyre_core_temperatures_c=v.get("tyre_core_temp_c"),
+                tyre_dirty_level=v.get("tyre_dirty"),
+                wheel_slip=v.get("wheel_slip"),
+                wheel_load=v.get("wheel_load"),
+                wheel_angular_speed=v.get("wheel_angular_speed"),
+                suspension_travel=v.get("suspension_travel"),
+                brake_temperatures_c=v.get("brake_temp_c"),
+                brake_pressures=v.get("brake_pressure"),
+                brake_pad_life=v.get("pad_life"),
+                brake_disc_life=v.get("disc_life"),
+                car_damage=v.get("car_damage"),
+                air_temperature_c=v.get("air_temp_c"),
+                track_temperature_c=v.get("road_temp_c"),
+                water_temperature_c=v.get("water_temp_c"),
+                turbo_boost=v.get("turbo_boost"),
+                brake_bias=v.get("brake_bias"),
+                tc_level=(graphics.get("tc_level") if graphics else None),
+                tc_cut=(graphics.get("tc_cut") if graphics else None),
+                abs_level=(graphics.get("abs_level") if graphics else None),
+                engine_map=(graphics.get("engine_map") if graphics else None),
+                pit_limiter_on=v.get("pit_limiter_on"),
+                penalty_time_s=(graphics.get("penalty_time_s") if graphics else None),
+                penalty_type=(graphics.get("penalty") if graphics else None),
+                fuel_per_lap=(graphics.get("fuel_per_lap") if graphics else None),
+                fuel_estimated_laps=(graphics.get("fuel_estimated_laps") if graphics else None),
+                used_fuel_l=(graphics.get("used_fuel_l") if graphics else None),
+                track_status=(graphics.get("track_status", "") if graphics else ""),
+                track_grip_status=(graphics.get("track_grip_status") if graphics else None),
+                rain_intensity=(graphics.get("rain_intensity") if graphics else None),
+                rain_intensity_10min=(graphics.get("rain_10min") if graphics else None),
+                rain_intensity_30min=(graphics.get("rain_30min") if graphics else None),
+                rain_tyres=(graphics.get("rain_tyres") if graphics else None),
+                wind_speed_mps=(graphics.get("wind_speed") if graphics else None),
+                wind_direction_rad=(graphics.get("wind_direction") if graphics else None),
+                mandatory_pit_done=(graphics.get("mandatory_pit_done") if graphics else None),
+                missing_mandatory_pits=(graphics.get("missing_mandatory_pits") if graphics else None),
+                driver_stint_left_ms=(graphics.get("driver_stint_left_ms") if graphics else None),
+                driver_stint_total_ms=(graphics.get("driver_stint_total_ms") if graphics else None),
+                gap_ahead_ms=(graphics.get("gap_ahead_ms") if graphics else None),
+                gap_behind_ms=(graphics.get("gap_behind_ms") if graphics else None),
+                fuel_to_add_l=(graphics.get("mfd_fuel_to_add") if graphics else None),
+                current_tyre_set=(graphics.get("current_tyre_set") if graphics else None),
+                strategy_tyre_set=(graphics.get("strategy_tyre_set") if graphics else None),
+                exhaust_temperature_c=(graphics.get("exhaust_temp_c") if graphics else None),
+                engine_running=v.get("engine_running"),
+                ignition_on=v.get("ignition_on"),
+                is_ai_controlled=v.get("is_ai_controlled"),
+                g_force=v.get("acc_g"),
+                local_velocity=v.get("local_velocity"),
+                local_angular_velocity=v.get("local_angular_velocity"),
+                car=(static.get("car_model", "") if static else ""),
+                track=(static.get("track", "") if static else ""),
             )
             self._live = live
             self._wheel = wheel
