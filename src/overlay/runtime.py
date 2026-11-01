@@ -274,37 +274,74 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
     dashboard_server = None
     dashboard_url = None
 
-    # Keep the live UDP receiver bound for the entire application lifetime.
-    # Replay is a second source gated by RaceStateReceiver.set_telemetry_mode().
+    # Keep the UDP receiver and long-lived services running for the whole app.
+    # ACC selection gates F1 packet processing and starts/stops only its reader.
+    profile_store = DriverProfileStore()
+    initial_profile = profile_store.active_profile() or {}
+    active_game_state = {"value": str(initial_profile.get("active_game") or game or "f1_26").strip().lower()}
+    if active_game_state["value"] not in {"f1_26", "acc"}:
+        active_game_state["value"] = "f1_26"
+    receiver.set_telemetry_mode("acc" if active_game_state["value"] == "acc" else "live")
+    print(f"[PROFILE] Active game source: {active_game_state['value']}", flush=True)
+
     replay_thread = {"thread": None, "stop": None}
     mode = {"value": "live"}
-
-    acc_reader = None
+    acc_reader_state = {"reader": None}
 
     def live_worker():
-        nonlocal acc_reader
         try:
-            receiver.set_telemetry_mode("live")
-            if str(game or "f1_26").strip().lower() == "acc":
-                # Stage 1: ACC feeds the existing GamePad Pro bridge while the
-                # normal Qt overlay, Control Center and dashboard remain active.
-                # F1 coaching/strategy is intentionally not evaluated for ACC.
-                from ..acc_telemetry import ACCSharedMemoryReader
-                print("[ACC] Qt runtime selected: ACC Stage 1 Shared Memory", flush=True)
-                acc_reader = ACCSharedMemoryReader(on_snapshot=receiver.wheel_bridge.update)
-                if receiver.wheel_bridge.enabled:
-                    receiver.wheel_bridge.start()
-                    print("[ACC] GamePad Pro bridge start requested", flush=True)
-                else:
-                    print("[ACC] WARNING: GamePad Pro telemetry is disabled in Product Settings or safe mode", flush=True)
-                acc_reader.start()
-                print("[ACC] Shared Memory reader started; waiting for ACC physics packets", flush=True)
-                last_error = None
-                last_report = 0.0
-                last_packet_count = 0
-                while not stop_event.wait(0.25):
-                    live, _wheel = acc_reader.snapshots()
-                    error = acc_reader.last_error
+            receiver.run(stop_event=stop_event)
+        except BaseException as error:
+            errors.append(error)
+            stop_event.set()
+
+    def game_source_worker():
+        """Watch the persisted Game Profile and hot-switch telemetry adapters."""
+        current_game = None
+        last_error = None
+        last_report = 0.0
+        last_packet_count = 0
+        try:
+            while not stop_event.is_set():
+                try:
+                    profile = profile_store.active_profile() or {}
+                    requested = str(profile.get("active_game") or game or "f1_26").strip().lower()
+                    desired = requested if requested in {"f1_26", "acc"} else "f1_26"
+                except Exception as error:
+                    desired = active_game_state["value"]
+                    if str(error) != last_error:
+                        print(f"[PROFILE] Active game refresh failed: {error}", flush=True)
+                        last_error = str(error)
+
+                if desired != current_game:
+                    old_reader = acc_reader_state.get("reader")
+                    if old_reader is not None:
+                        old_reader.close(wait=True)
+                        acc_reader_state["reader"] = None
+
+                    from ..hardware_companion.models import WheelTelemetrySnapshot
+                    receiver.wheel_bridge.update(WheelTelemetrySnapshot())
+                    active_game_state["value"] = desired
+                    receiver.set_telemetry_mode("acc" if desired == "acc" else "live")
+                    print(f"[PROFILE] Live game switch: {current_game or 'startup'} -> {desired}", flush=True)
+
+                    if desired == "acc":
+                        from ..acc_telemetry import ACCSharedMemoryReader
+                        reader = ACCSharedMemoryReader(on_snapshot=receiver.wheel_bridge.update)
+                        acc_reader_state["reader"] = reader
+                        reader.start()
+                        print("[ACC] Shared Memory reader started; waiting for ACC physics packets", flush=True)
+                        last_error = None
+                        last_report = 0.0
+                        last_packet_count = 0
+                    else:
+                        print("[F1] UDP telemetry source active", flush=True)
+                    current_game = desired
+
+                reader = acc_reader_state.get("reader")
+                if current_game == "acc" and reader is not None:
+                    live, _wheel = reader.snapshots()
+                    error = reader.last_error
                     now = time.monotonic()
                     if error and error != last_error:
                         print(f"[ACC] Shared Memory unavailable: {error}", flush=True)
@@ -325,14 +362,21 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
                         last_report = now
                     last_packet_count = live.total_packets
                     last_error = error
-            else:
-                receiver.run(stop_event=stop_event)
+
+                stop_event.wait(0.25)
         except BaseException as error:
             errors.append(error)
             stop_event.set()
+        finally:
+            reader = acc_reader_state.get("reader")
+            if reader is not None:
+                reader.close(wait=True)
+                acc_reader_state["reader"] = None
 
     live_thread = threading.Thread(target=live_worker, name="race-engineer-overlay-live", daemon=True)
     live_thread.start()
+    game_source_thread = threading.Thread(target=game_source_worker, name="race-engineer-game-source", daemon=True)
+    game_source_thread.start()
 
     def _stop_replay_thread():
         ev = replay_thread.get("stop")
@@ -374,9 +418,9 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
         # While still gated to replay, clear replay-derived state. Then reopen the
         # live source; fresh UDP packets immediately rebuild the current game state.
         receiver.reset_replay_state()
-        receiver.set_telemetry_mode("live")
+        receiver.set_telemetry_mode("acc" if active_game_state["value"] == "acc" else "live")
         mode["value"] = "live"
-        return True, "Live UDP mode active"
+        return True, "Live game telemetry mode active"
 
     def replay_mode_active():
         return mode["value"] == "replay"
@@ -444,10 +488,8 @@ def run_overlay(receiver, *, game="f1_26", replay_file=None, replay_speed=1.0, r
     rc = app.exec()
     _stop_replay_thread()
     stop_event.set()
+    game_source_thread.join(timeout=3.0)
     live_thread.join(timeout=3.0)
-    if acc_reader is not None:
-        acc_reader.close(wait=True)
-        receiver.wheel_bridge.close(wait=True)
     if dashboard_server is not None:
         dashboard_server.stop()
     return rc
