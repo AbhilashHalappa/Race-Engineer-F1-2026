@@ -325,3 +325,34 @@ def test_acc_overlay_snapshot_uses_acc_common_state_without_f1_pit_advice():
     assert snapshot.fuel_capacity == 100.0
     assert snapshot.fuel_remaining_laps == 8.5
     assert snapshot.race_engineer.decision == "ACC STRATEGY NOT READY"
+
+
+def test_acc_adapter_preserves_native_damage_values_and_radio_reports_them():
+    from src.telemetry_pipeline import race_state_from_acc
+    from src.voice_commands import handle_voice_request
+
+    live = SimpleNamespace(
+        car="GT3", track="Monza", session=2, session_type=2,
+        car_damage=(0.12, 0.04, 0.01, 0.02, 0.00),
+    )
+    state = race_state_from_acc(live)
+
+    assert state.player.damage.acc_values == (0.12, 0.04, 0.01, 0.02, 0.0)
+    answer = handle_voice_request("car damage", state)
+    assert "front 0.120" in answer.response
+    assert "rear 0.040" in answer.response
+
+
+def test_acc_map_learner_rejects_straight_line_and_accepts_closed_circuit():
+    import math
+    from src.acc_runtime import ACCRuntime
+
+    straight = [(float(i) * 20.0, float(i) * 0.05) for i in range(200)]
+    assert ACCRuntime._map_trace_is_valid(straight) is False
+
+    circuit = [
+        (900.0 * math.cos(2.0 * math.pi * i / 500.0),
+         450.0 * math.sin(2.0 * math.pi * i / 500.0))
+        for i in range(501)
+    ]
+    assert ACCRuntime._map_trace_is_valid(circuit) is True
