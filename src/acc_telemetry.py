@@ -121,8 +121,9 @@ class _SharedMemory:
 class ACCSharedMemoryReader:
     """ACC telemetry provider with the existing snapshots() interface."""
 
-    def __init__(self, *, on_snapshot=None, poll_hz: float = 60.0):
+    def __init__(self, *, on_snapshot=None, on_telemetry=None, poll_hz: float = 60.0):
         self.on_snapshot = on_snapshot
+        self.on_telemetry = on_telemetry
         self.poll_interval = 1.0 / max(10.0, min(240.0, poll_hz))
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -398,4 +399,11 @@ class ACCSharedMemoryReader:
             try:
                 self.on_snapshot(wheel)
             except Exception:
+                pass
+        if self.on_telemetry:
+            try:
+                self.on_telemetry(live)
+            except Exception:
+                # A downstream Race Engineer consumer must never interrupt the
+                # Shared Memory reader or the working wheel telemetry bridge.
                 pass
