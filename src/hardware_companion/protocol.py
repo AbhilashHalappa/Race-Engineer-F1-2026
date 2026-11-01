@@ -591,6 +591,10 @@ class ReceiverBridge:
                 with self._lock:
                     was_reconnect = self._ever_connected
                     reconnects = self._health.reconnects + (1 if was_reconnect else 0)
+                    self._pedal_sensor_status = None
+                    self._pedal_sensor_updated_monotonic = None
+                    self._handbrake_sensor_status = None
+                    self._handbrake_sensor_updated_monotonic = None
                     self._health = replace(
                         self._health,
                         serial_connected=True,
@@ -608,6 +612,8 @@ class ReceiverBridge:
                 self._send_control(CONTROL_ENABLE_EXTENDED, version=CONTROL_VERSION_V2, suppress_errors=True)
                 self._send_control(CONTROL_ENABLE_EXTENDED, version=CONTROL_VERSION_V3, suppress_errors=True)
                 self.request_pedal_settings(version=PEDAL_SETTINGS_V1)
+                self.request_pedal_sensor_status()
+                self.request_handbrake_sensor_status()
                 return True
             except Exception as error:
                 self.last_error = str(error)
