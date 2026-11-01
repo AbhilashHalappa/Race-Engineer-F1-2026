@@ -339,6 +339,7 @@ class InputSnapshot:
 @dataclass(frozen=True, slots=True)
 class OverlaySnapshot:
     connected: bool
+    game_id: str
     event_profile: str
     session_type: str | None
     speed_kph: int | None
@@ -1917,6 +1918,7 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
 
     return OverlaySnapshot(
         connected=bool(connected),
+        game_id=("acc" if isinstance(extended, dict) and extended.get("game_id") == "acc" else "f1_26"),
         event_profile=_fmt_profile(profile),
         session_type=_enum_name(getattr(session, "session_type", None)) if session is not None else None,
         speed_kph=getattr(telemetry, "speed_kph", None) if telemetry is not None else None,
