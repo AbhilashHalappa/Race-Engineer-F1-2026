@@ -1,5 +1,8 @@
 #include "RpmLedReceiver.h"
 #include "Config.h"
+#include <string.h>
+
+constexpr uint8_t S3_RECEIVER_MAC[6] = { 0x9C, 0x13, 0x9E, 0xF4, 0x35, 0xB4 };
 
 namespace
 {
@@ -13,7 +16,9 @@ volatile bool haveSequence = false;
 
 void RpmLedReceiver::onReceive(const esp_now_recv_info_t* info, const uint8_t* data, int len)
 {
-    if (info == nullptr || data == nullptr || len != static_cast<int>(sizeof(RpmLedFrame))) return;
+    if (info == nullptr || data == nullptr ||
+        memcmp(info->src_addr, S3_RECEIVER_MAC, 6) != 0 ||
+        len != static_cast<int>(sizeof(RpmLedFrame))) return;
 
     RpmLedFrame frame{};
     memcpy(&frame, data, sizeof(frame));
