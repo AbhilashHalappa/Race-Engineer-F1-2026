@@ -53,6 +53,8 @@ def install() -> None:
         callback = kwargs.get("on_snapshot")
         original_reader_init(self, *args, **kwargs)
         self._acc_receiver = _receiver_for_callback(callback)
+        if self._acc_receiver is not None:
+            self._acc_receiver.acc_reader = self
         self._acc_last_engineer_at = 0.0
         self._acc_runtime_started = False
 
@@ -104,6 +106,47 @@ def install() -> None:
         OverlayDataProvider.input_snapshot = input_snapshot
         OverlayDataProvider.snapshot = overlay_snapshot
         OverlayDataProvider._acc_bootstrap_installed = True
+
+    # The receiver's normal console status is intentionally F1-UDP-specific.
+    # Show ACC Shared Memory health instead of a misleading "UDP STOPPED" banner.
+    if not getattr(RaceStateReceiver, "_acc_status_bootstrap_installed", False):
+        original_print_status = RaceStateReceiver.print_status
+
+        def print_status(self, packets_per_second, now):
+            if getattr(self, "_telemetry_mode", "live") != "acc":
+                return original_print_status(self, packets_per_second, now)
+            reader = getattr(self, "acc_reader", None)
+            if reader is None:
+                print("[ACC] Waiting for Shared Memory telemetry...", flush=True)
+                return
+            live, _wheel = reader.snapshots()
+            age = (max(0.0, now - live.last_packet_monotonic)
+                   if live.last_packet_monotonic is not None else None)
+            connected = bool(live.udp_connected and age is not None and age < 3.0)
+            tyre_t = live.tyre_core_temperatures_c or (None, None, None, None)
+            tyre_p = live.tyre_pressures_psi or (None, None, None, None)
+            fmt = lambda values, suffix: " / ".join(
+                f"{v:.1f}{suffix}" if isinstance(v, (int, float)) else "--"
+                for v in values
+            )
+            print("=" * 60, flush=True)
+            print(f"[ACC] {'LIVE' if connected else 'STALE / WAITING'} | "
+                  f"{live.speed_kph} km/h | Gear {live.gear} | {live.engine_rpm} rpm | "
+                  f"Throttle {live.throttle_percent}% | Brake {live.brake_percent}%", flush=True)
+            print(f"Car: {live.car or '--'} | Track: {live.track or '--'} | "
+                  f"Session: {live.session_type if live.session_type is not None else '--'} | "
+                  f"Lap: {live.lap_number or '--'} | Position: {live.position or '--'}", flush=True)
+            print(f"Fuel: {live.fuel_l if live.fuel_l is not None else '--'} L | "
+                  f"Air/Track: {live.air_temperature_c if live.air_temperature_c is not None else '--'} / "
+                  f"{live.track_temperature_c if live.track_temperature_c is not None else '--'} C | "
+                  f"Tyre core: {fmt(tyre_t, ' C')}", flush=True)
+            print(f"Tyre PSI: {fmt(tyre_p, '')} | Brake C: {fmt(live.brake_temperatures_c or (), ' C')}", flush=True)
+            print(f"ACC frames: {live.total_packets} | Rate: {live.packets_per_second:.1f} Hz | "
+                  f"Age: {age:.2f}s" if age is not None else f"ACC frames: {live.total_packets}", flush=True)
+            return
+
+        RaceStateReceiver.print_status = print_status
+        RaceStateReceiver._acc_status_bootstrap_installed = True
 
     # Radio request handling already accepts RaceState. Temporarily supply the
     # ACC-adapted state to that existing handler only for ACC PTT callbacks.
