@@ -333,6 +333,7 @@ class SensorConfigurationWidget(QWidget):
         # The Receiver is authoritative for output-enable state. Synchronize
         # the controls from its latest PC/PS settings without emitting writes.
         try:
+            settings_changed = False
             curve_settings, supported, _curve_stamp, version = receiver.pedal_settings_snapshot()
             if supported and version < 4 and not self._v4_probe_sent:
                 receiver.request_pedal_settings(version=4)
@@ -352,7 +353,10 @@ class SensorConfigurationWidget(QWidget):
                         button.setChecked(enabled)
                         button.blockSignals(False)
                         self._update_enable_button(button, axis, enabled)
-                    self.settings[f"{axis}_enabled"] = enabled
+                    if self.settings.get(f"{axis}_enabled") != enabled:
+                        self.settings[f"{axis}_enabled"] = enabled
+                        settings_changed = True
+            if settings_changed:
                 save_settings(self.settings)
         except Exception:
             # Sensor readback remains usable if the optional PC/PS query fails.
