@@ -293,6 +293,7 @@ class ACCSharedMemoryReader:
                 session=(graphics.get("session") if graphics else None),
                 fuel_percent=fuel_percent,
                 fuel_l=fuel_l,
+                max_fuel_l=max_fuel if max_fuel > 0 else None,
                 ers_percent=None,
                 ers_mode=0,
                 flag_status=flag_status,
