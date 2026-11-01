@@ -150,6 +150,13 @@ def _array(values):
     return tuple(_finite(v) for v in values)
 
 
+def _positive_array(values):
+    return tuple(
+        (value if value is not None and value > 0 else None)
+        for value in (_finite(v) for v in values)
+    )
+
+
 def _matrix4x3(values):
     flat = tuple(values)
     return tuple(tuple(_finite(flat[i * 3 + j]) for j in range(3)) for i in range(4))
@@ -176,16 +183,16 @@ def decode_physics_extended(data: bytes) -> dict:
         "tyre_contact_normal": _matrix4x3(p.tyre_contact_normal),
         "tyre_contact_heading": _matrix4x3(p.tyre_contact_heading),
         "wheel_slip": _array(p.wheel_slip), "wheel_load": None,  # ACC marks wheelLoad as unused
-        "tyre_pressure_psi": _array(p.tyre_pressure_psi),
+        "tyre_pressure_psi": _positive_array(p.tyre_pressure_psi),
         "wheel_angular_speed": _array(p.wheel_angular_speed),
         "tyre_dirty": None,  # ACC marks tyreDirtyLevel as unused
-        "tyre_core_temp_c": _array(p.tyre_core_temp_c),
+        "tyre_core_temp_c": _positive_array(p.tyre_core_temp_c),
         "suspension_travel": _array(p.suspension_travel), "tc": _finite(p.tc),
         "car_damage": _array(p.car_damage), "pit_limiter_on": bool(p.pit_limiter_on),
         "abs": _finite(p.abs), "turbo_boost": _finite(p.turbo_boost),
         "air_temp_c": _finite(p.air_temp_c), "road_temp_c": _finite(p.road_temp_c),
         "local_angular_velocity": _array(p.local_angular_velocity),
-        "brake_temp_c": _array(p.brake_temp_c), "clutch": _finite(p.clutch),
+        "brake_temp_c": _positive_array(p.brake_temp_c), "clutch": _finite(p.clutch),
         "is_ai_controlled": bool(p.is_ai_controlled), "brake_bias": _finite(p.brake_bias),
         "local_velocity": _array(p.local_velocity), "slip_ratio": _array(p.slip_ratio),
         "slip_angle": _array(p.slip_angle), "water_temp_c": _finite(p.water_temp_c),
@@ -254,7 +261,7 @@ def decode_graphics_extended(data: bytes) -> dict:
         "session_index": int(g.session_index), "active_cars": int(g.active_cars),
         "player_car_id": int(g.player_car_id), "mfd_tyre_set": int(g.mfd_tyre_set),
         "mfd_fuel_to_add": _finite(g.mfd_fuel_to_add),
-        "mfd_tyre_pressures": _array((g.mfd_pressure_fl, g.mfd_pressure_fr, g.mfd_pressure_rl, g.mfd_pressure_rr)),
+        "mfd_tyre_pressures": _positive_array((g.mfd_pressure_fl, g.mfd_pressure_fr, g.mfd_pressure_rl, g.mfd_pressure_rr)),
         "direction_left": bool(g.direction_left), "direction_right": bool(g.direction_right),
         "track_grip_status": int(g.track_grip_status), "rain_intensity": int(g.rain_intensity),
         "rain_10min": int(g.rain_10min), "rain_30min": int(g.rain_30min),
