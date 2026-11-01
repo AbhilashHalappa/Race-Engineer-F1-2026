@@ -182,26 +182,40 @@ def frame_from_f1(state, *, now: float | None = None) -> TelemetryFrame | None:
 
 
 def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
-    """Adapt ACC Shared Memory values into the existing RaceState consumer model.
+    """Adapt ACC Shared Memory into the existing RaceState consumer contract.
 
-    Only ACC-observed values are populated. F1-only fields remain None/default,
-    so the protected AutomaticEngineer can safely apply its existing generic
-    lap, fuel, pit and driving-state rules without receiving invented data.
+    ACC-only measurements are also retained in RaceState.extended. Fields that
+    ACC does not publish (for example tyre wear, F1 ERS/DRS and tyre surface
+    temperature) remain unset rather than being inferred.
     """
     from .race_state.models import (
-        CarState, CarTelemetry, FuelState, Identity, LapState, RaceState,
-        SessionState,
+        CarState, CarTelemetry, DamageState, FuelState, Identity, LapState,
+        RaceState, SessionState, TyreState, Wheels,
     )
     from .telemetry.enums import EnumValue
 
     def number(value, cast=float):
         try:
             result = cast(value)
-            return result
+            return result if result is not None else None
         except (TypeError, ValueError, OverflowError):
             return None
 
-    def fraction(value):
+    def wheel(values):
+        if not isinstance(values, (tuple, list)) or len(values) != 4:
+            return None
+        parsed = [number(v) for v in values]
+        if all(v is None for v in parsed):
+            return None
+        return Wheels(*parsed)
+
+    def enum(raw, names):
+        value = number(raw, int)
+        if value is None or value not in names:
+            return None
+        return EnumValue(value, names[value])
+
+    def fraction_percent(value):
         result = number(value)
         if result is None:
             return None
@@ -211,40 +225,112 @@ def race_state_from_acc(telemetry, *, fuel_remaining_laps=None, session_uid=1):
     position = number(getattr(telemetry, "position", None), int)
     pit_lane = bool(getattr(telemetry, "is_in_pit_lane", False))
     in_pit = bool(getattr(telemetry, "is_in_pit", False))
-    pit_status = None
-    if pit_lane:
-        pit_status = EnumValue(1, "Pitting")
-    elif in_pit:
-        pit_status = EnumValue(2, "In pit area")
+    pit_status = EnumValue(1, "Pitting") if pit_lane else EnumValue(2, "In pit area") if in_pit else None
 
-    player = CarState(
+    session_type_names = {
+        0: "Practice", 1: "Qualifying", 2: "Race", 3: "Hotlap",
+        4: "Time attack", 5: "Drift", 6: "Drag", 7: "Hotstint",
+        8: "Hotstint superpole",
+    }
+    rain_names = {0: "Dry", 1: "Drizzle", 2: "Light rain", 3: "Medium rain", 4: "Heavy rain", 5: "Thunderstorm"}
+    grip_names = {0: "Green", 1: "Fast", 2: "Optimum", 3: "Greasy", 4: "Damp", 5: "Wet", 6: "Flooded"}
+
+    session_type = enum(getattr(telemetry, "session_type", None), session_type_names)
+    rain = enum(getattr(telemetry, "rain_intensity", None), rain_names)
+    grip = enum(getattr(telemetry, "track_grip_status", None), grip_names)
+    track_name = str(getattr(telemetry, "track", "") or "").strip()
+    car_name = str(getattr(telemetry, "car", "") or "").strip()
+    player_name = str(getattr(telemetry, "player_name", "") or "").strip()
+
+    core_temps = wheel(getattr(telemetry, "tyre_core_temperatures_c", None))
+    tyre_pressures = wheel(getattr(telemetry, "tyre_pressures_psi", None))
+    brake_temps = wheel(getattr(telemetry, "brake_temperatures_c", None))
+    brake_pressure = wheel(getattr(telemetry, "brake_pressures", None))
+    fuel_laps = number(getattr(telemetry, "fuel_estimated_laps", None))
+    if fuel_laps is None:
+        fuel_laps = number(fuel_remaining_laps)
+
+    session = SessionState(
+        uid=int(session_uid),
+        session_type=session_type,
+        track=EnumValue(0, track_name) if track_name else None,
+        track_temperature_c=number(getattr(telemetry, "track_temperature_c", None), int),
+        air_temperature_c=number(getattr(telemetry, "air_temperature_c", None), int),
+        time_left_s=number(getattr(telemetry, "session_time_left_s", None), int),
+        total_laps=number(getattr(telemetry, "number_of_laps", None), int),
+        session_time_s=None,
+        weather=rain,
+    )
+    lap = LapState(
+        position=position if position and position > 0 else None,
+        current_lap=lap_number if lap_number and lap_number > 0 else None,
+        current_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "current_lap_time_ms", None)),
+        previous_lap_time_s=_milliseconds_to_seconds(getattr(telemetry, "last_lap_time_ms", None)),
+        sector=number(getattr(telemetry, "sector", None), int),
+        lap_valid=getattr(telemetry, "lap_valid", None),
+        total_distance_m=None,
+        pit_status=pit_status,
+        penalties_s=number(getattr(telemetry, "penalty_time_s", None), int),
+    )
+    car = CarState(
         index=0,
-        identity=Identity(name=str(getattr(telemetry, "car", "") or "") or None),
-        lap=LapState(
-            position=position if position and position > 0 else None,
-            current_lap=lap_number if lap_number and lap_number > 0 else None,
-            previous_lap_time_s=_milliseconds_to_seconds(
-                getattr(telemetry, "last_lap_time_ms", None)
-            ),
-            pit_status=pit_status,
-        ),
+        identity=Identity(name=player_name or None),
+        lap=lap,
         telemetry=CarTelemetry(
             speed_kph=number(getattr(telemetry, "speed_kph", None), int),
-            throttle=fraction(getattr(telemetry, "throttle_percent", None)),
-            brake=fraction(getattr(telemetry, "brake_percent", None)),
+            throttle=fraction_percent(getattr(telemetry, "throttle_percent", None)),
+            brake=fraction_percent(getattr(telemetry, "brake_percent", None)),
+            clutch_percent=number(getattr(telemetry, "clutch_percent", None), int),
             steering=_signed_percent_fraction(getattr(telemetry, "steering_percent", None)),
             gear=number(getattr(telemetry, "gear", None), int),
             rpm=number(getattr(telemetry, "engine_rpm", None), int),
+            engine_temperature_c=number(getattr(telemetry, "water_temperature_c", None), int),
+            brakes_temperature_c=brake_temps,
+            brake_pressure=brake_pressure,
         ),
-        fuel=FuelState(
-            # ACC fuel is litres; EA's remaining_mass is deliberately not reused.
-            remaining_laps=_optional_float(fuel_remaining_laps),
+        fuel=FuelState(remaining_laps=fuel_laps),
+        tyres=TyreState(
+            actual_compound=EnumValue(0, str(getattr(telemetry, "tyre_compound", "") or "Unknown")),
+            core_temperature_c=core_temps,
+            pressure_psi=tyre_pressures,
         ),
+        damage=DamageState(),
     )
+
+    extended_fields = (
+        "fuel_l", "fuel_percent", "clutch_percent", "tyre_compound",
+        "tyre_pressures_psi", "tyre_core_temperatures_c", "tyre_dirty_level",
+        "wheel_slip", "wheel_load", "wheel_angular_speed", "suspension_travel",
+        "brake_temperatures_c", "brake_pressures", "brake_pad_life", "brake_disc_life",
+        "car_damage", "air_temperature_c", "track_temperature_c", "water_temperature_c",
+        "turbo_boost", "brake_bias", "tc_level", "tc_cut", "abs_level", "engine_map",
+        "pit_limiter_on", "penalty_time_s", "penalty_type", "fuel_per_lap",
+        "fuel_estimated_laps", "used_fuel_l", "track_status", "track_grip_status",
+        "rain_intensity", "rain_intensity_10min", "rain_intensity_30min", "rain_tyres",
+        "wind_speed_mps", "wind_direction_rad", "mandatory_pit_done",
+        "missing_mandatory_pits", "driver_stint_left_ms", "driver_stint_total_ms",
+        "gap_ahead_ms", "gap_behind_ms", "fuel_to_add_l", "current_tyre_set",
+        "strategy_tyre_set", "exhaust_temperature_c", "engine_running", "ignition_on",
+        "is_ai_controlled", "g_force", "local_velocity", "local_angular_velocity",
+        "session_time_left_s", "normalized_car_position", "lap_valid", "sector",
+        "current_lap_time_ms", "session_type", "number_of_laps", "position", "lap_number",
+    )
+    extended = {
+        name: getattr(telemetry, name)
+        for name in extended_fields
+        if hasattr(telemetry, name) and getattr(telemetry, name) is not None
+    }
+    extended["game_id"] = "acc"
+    extended["car_model"] = car_name
+    extended["track"] = track_name
+    extended["track_grip_name"] = grip.name if grip is not None else None
+    extended["rain_name"] = rain.name if rain is not None else None
+
     return RaceState(
-        session=SessionState(uid=int(session_uid)),
+        session=session,
         player_index=0,
-        player=player,
+        player=car,
+        extended=extended,
     )
 
 def _optional_float(value) -> Optional[float]:
