@@ -758,7 +758,7 @@ class MeasuredPerformanceRecorder:
           'warnings':getattr(lap_state,'warnings',None) if lap_state is not None else None,
           'penalties_s':getattr(lap_state,'penalties_s',None) if lap_state is not None else None,
           'corner_cutting_warnings':getattr(lap_state,'corner_cutting_warnings',None) if lap_state is not None else None,
-          'gear_changes':sum(1 for x,y in zip(a,a[1:]) if x.gear is not None and y.gear is not None and x.gear!=y.gear),'sections':self._segments(a),'lap_start_anchored':_samples_have_lap_start(a),
+          'gear_changes':sum(1 for x,y in zip(a,a[1:]) if x.gear is not None and y.gear is not None and x.gear!=y.gear),'sections':self._segments(a),'lap_start_anchored':bool(self.current_lap_started_clean),
           'pit_lap':bool(self.current_lap_pit),'traffic_compromised':bool(self.current_lap_traffic_compromised),
           'traffic_evidence':{
               'profile':str((self.event_context or {}).get('profile') or 'unknown'),
@@ -929,7 +929,7 @@ class MeasuredPerformanceRecorder:
             a,b=cur.get(k),ref.get(k)
             if a is not None and b is not None:out[k+'_delta']=a-b
         ca,ra=cur.get('_samples',{}),ref.get('_samples',{});common=sorted(set(ca)&set(ra))
-        if common and _samples_have_lap_start(ca) and _samples_have_lap_start(ra):
+        if common and (cur.get('lap_start_anchored') or _samples_have_lap_start(ca)) and (ref.get('lap_start_anchored') or _samples_have_lap_start(ra)):
             deltas=[]; prev_ct=prev_rt=None
             for d in common:
                 ct=_sample_field(ca[d],'t'); rt=_sample_field(ra[d],'t')
