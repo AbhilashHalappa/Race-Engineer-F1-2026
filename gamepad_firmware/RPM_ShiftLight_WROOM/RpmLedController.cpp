@@ -27,6 +27,11 @@ bool longPressHandled = false;
 bool whiteTemperatureMode = false;
 uint8_t whiteTemperatureIndex = 0;
 
+// Brief warm-white pulse confirms entry/exit from temperature-selection mode.
+bool modeFeedbackActive = false;
+uint32_t modeFeedbackStartMs = 0;
+constexpr uint32_t MODE_FEEDBACK_MS = 180;
+
 uint8_t lastRenderedRpm = 255;
 bool lastRenderedShift = false;
 bool lastRenderedFresh = false;
@@ -54,16 +59,16 @@ struct WhiteTone
 
 constexpr WhiteTone WHITE_TONES[WHITE_TEMPERATURE_COUNT] = {
     {255, 255, 255}, // Pure white
-    {255, 250, 245},
-    {255, 245, 235},
-    {255, 240, 225},
-    {255, 235, 215},
-    {255, 230, 205},
-    {255, 225, 195},
-    {255, 220, 185},
-    {255, 215, 175},
-    {255, 205, 160},
-    {255, 195, 145}  // Warm white
+    {255, 250, 240},
+    {255, 245, 230},
+    {255, 240, 220},
+    {255, 235, 210},
+    {255, 230, 200},
+    {255, 225, 190},
+    {255, 220, 180},
+    {255, 210, 165},
+    {255, 200, 150},
+    {255, 180, 110}  // Clearly warm white
 };
 
 // Index: previous AB state (2 bits), followed by current AB state (2 bits).
@@ -178,6 +183,8 @@ bool readLocalControls(bool telemetryFresh)
         {
             whiteTemperatureMode = !whiteTemperatureMode;
             encoderTransitionCount = 0;
+            modeFeedbackActive = true;
+            modeFeedbackStartMs = now;
             changed = true;
             Serial.printf("[RPM CTRL] White temperature selection %s\n",
                           whiteTemperatureMode ? "ON" : "OFF");
@@ -224,7 +231,10 @@ void render(uint8_t rpm, bool shift, bool fresh)
 
     if (!fresh)
     {
-        const WhiteTone tone = WHITE_TONES[whiteTemperatureIndex];
+        const WhiteTone tone = (modeFeedbackActive &&
+                                (millis() - modeFeedbackStartMs) < MODE_FEEDBACK_MS)
+            ? WHITE_TONES[WHITE_TEMPERATURE_COUNT - 1]
+            : WHITE_TONES[whiteTemperatureIndex];
         const uint32_t white = strip.Color(tone.red, tone.green, tone.blue);
         for (uint8_t i = 0; i < LED_COUNT; ++i)
             strip.setPixelColor(i, white);
@@ -284,6 +294,14 @@ void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetr
     const bool controlsChanged = readLocalControls(telemetryFresh);
     const uint32_t now = millis();
 
+    // End the one-shot mode-change pulse and restore the selected white tone.
+    bool feedbackExpired = false;
+    if (modeFeedbackActive && (now - modeFeedbackStartMs) >= MODE_FEEDBACK_MS)
+    {
+        modeFeedbackActive = false;
+        feedbackExpired = true;
+    }
+
     if (shiftLight && telemetryFresh && (now - lastShiftFlashMs >= SHIFT_FLASH_PERIOD_MS))
     {
         lastShiftFlashMs = now;
@@ -294,7 +312,7 @@ void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetr
         shiftFlashOn = false;
     }
 
-    if (controlsChanged || rpmPercent != lastRenderedRpm ||
+    if (controlsChanged || feedbackExpired || rpmPercent != lastRenderedRpm ||
         shiftLight != lastRenderedShift || telemetryFresh != lastRenderedFresh ||
         shiftFlashOn != lastRenderedShiftFlash || brightnessLevel != lastRenderedBrightness ||
         ledsEnabled != lastRenderedEnabled || whiteTemperatureIndex != lastRenderedWhiteIndex ||
