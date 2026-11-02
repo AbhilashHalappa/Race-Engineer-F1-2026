@@ -38,4 +38,31 @@ class PerformanceV092Tests(unittest.TestCase):
         s=state(); r=MeasuredPerformanceRecorder(); r.observe(s)
         self.assertIn('Two sufficiently sampled', radio_summary(s))
 
+    def test_acc_start_anchor_uses_normalized_position_when_distance_origin_is_offset(self):
+        s=state()
+        s.extended={"game_id":"acc", "normalized_car_position":0.006}
+        r=MeasuredPerformanceRecorder()
+
+        # The prior lap is already in progress. ACC's first sample after S/F
+        # lands at 34.2 m because its physical distance axis has a small offset.
+        s.player.lap.current_lap=1
+        s.player.lap.lap_distance_m=100.0
+        s.player.lap.current_lap_time_s=3.0
+        r.observe(s)
+
+        s.player.lap.current_lap=2
+        s.player.lap.lap_distance_m=34.2
+        s.player.lap.current_lap_time_s=0.5
+        r.observe(s)
+
+        self.assertTrue(r.current_lap_started_clean)
+
+    def test_f1_start_anchor_distance_threshold_is_unchanged(self):
+        s=state()
+        r=MeasuredPerformanceRecorder()
+        s.player.lap.lap_distance_m=34.2
+        s.player.lap.current_lap_time_s=0.5
+        r.observe(s)
+        self.assertFalse(r.current_lap_started_clean)
+
 if __name__=='__main__': unittest.main()
