@@ -5,7 +5,7 @@
 
 // EC11 rotary encoder: A/CLK and B/DT control brightness.
 #define BRIGHTNESS_ENCODER_A_PIN 18
-#define BRIGHTNESS_ENCODER_B_PIN 22
+#define BRIGHTNESS_ENCODER_B_PIN 17
 
 // EC11 integrated push switch toggles the LED master enable.
-#define LED_MASTER_TOGGLE_PIN 17
+#define LED_MASTER_TOGGLE_PIN 22
