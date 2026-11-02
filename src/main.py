@@ -18,6 +18,7 @@ from .session_coach_report import save_coach_report
 from .stt import STTConfig
 from .llm_engineer import LLMConfig
 from .race_state_receiver import RaceStateReceiver as UDPReceiver
+from .acc_session_recording import replay_acc_into
 from . import reference_model as _reference_model
 from .wheel_telemetry import list_serial_ports, run_health_check
 
