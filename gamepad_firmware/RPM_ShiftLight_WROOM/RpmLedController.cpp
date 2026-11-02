@@ -302,7 +302,7 @@ void render(uint8_t rpm, bool shift, bool fresh)
     {
         if (shiftFlashOn) {
             for (uint8_t i = 0; i < LED_COUNT; ++i)
-                strip.setPixelColor(i, strip.Color(255, 255, 255));
+                strip.setPixelColor(i, strip.Color(110, 0, 0)); // Dark red shift flash
         }
     }
     else
