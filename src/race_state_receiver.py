@@ -502,6 +502,10 @@ class RaceStateReceiver(TelemetryReceiver):
             # The recorder needs every fresh ACC sample; expensive radio/coaching
             # decisions remain cadence-limited just like the F1 live pipeline.
             self.engine.performance.observe(state)
+            # Match the F1 packet path's reference lifecycle after the measured
+            # recorder has observed the newest state. ACC must honour queued
+            # measured-reference changes at the same start/finish boundary.
+            self._apply_pending_reference_locked()
             self._handle_session_transition_locked()
             self.session_summary_tracker.observe(state)
 
