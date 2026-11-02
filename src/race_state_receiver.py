@@ -423,10 +423,26 @@ class RaceStateReceiver(TelemetryReceiver):
         mode = str(mode).lower()
         if mode not in {"live", "replay", "acc"}:
             raise ValueError(f"Unsupported telemetry mode: {mode}")
+        close_recorders = []
         with self._runtime_lock:
             previous_mode = self._telemetry_mode
             self._telemetry_mode = mode
             self._replay_thread_id = replay_thread_id if mode == "replay" else None
+            if mode != previous_mode and self._recording_mode == "session":
+                if mode == "acc":
+                    if self.recorder is not None:
+                        close_recorders.append(self.recorder)
+                        self.recorder = None
+                    if self._session_recording_preference and self.acc_recorder is None:
+                        self.acc_recorder = ACCSessionRecorder()
+                elif mode == "live":
+                    if self.acc_recorder is not None:
+                        close_recorders.append(self.acc_recorder)
+                        self.acc_recorder = None
+                    if self._session_recording_preference and self.recorder is None:
+                        self.recorder = AsyncTelemetrySessionRecorder()
+        for old_recorder in close_recorders:
+            old_recorder.close()
         if mode != previous_mode:
             self._acc_last_packet_at = None
             self._acc_session_signature = None
