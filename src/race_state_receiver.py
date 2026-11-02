@@ -501,7 +501,40 @@ class RaceStateReceiver(TelemetryReceiver):
 
             # The recorder needs every fresh ACC sample; expensive radio/coaching
             # decisions remain cadence-limited just like the F1 live pipeline.
-            self.engine.performance.observe(state)
+            recorder = self.engine.performance
+            previous_recorded_lap = recorder.current_lap
+            previous_completed_count = len(recorder.completed)
+            recorder.observe(state)
+
+            # One compact diagnostic per ACC lap boundary. Live corner coaching
+            # can speak without an overlay reference, so this distinguishes lap
+            # capture/validity failures from reference-selection failures.
+            if previous_recorded_lap is not None and recorder.current_lap != previous_recorded_lap:
+                lap_state = getattr(getattr(state, "player", None), "lap", None)
+                if len(recorder.completed) > previous_completed_count:
+                    completed = recorder.completed[-1]
+                    valid_count = sum(1 for item in recorder.completed if item.get("valid"))
+                    print(
+                        "[ACC PERFORMANCE] completed "
+                        f"lap={completed.get('lap')} valid={completed.get('valid')} "
+                        f"samples={completed.get('sample_count')} "
+                        f"anchored={completed.get('lap_start_anchored')} "
+                        f"lap_time={completed.get('lap_time_s')} "
+                        f"valid_references={valid_count}/{len(recorder.completed)}",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        "[ACC PERFORMANCE] lap transition not recorded "
+                        f"from={previous_recorded_lap} to={recorder.current_lap} "
+                        f"samples={len(recorder.samples)} "
+                        f"started_clean={getattr(recorder, 'current_lap_started_clean', None)} "
+                        f"recorder_valid={getattr(recorder, 'current_lap_valid', None)} "
+                        f"telemetry_valid={getattr(lap_state, 'lap_valid', None)} "
+                        f"distance={getattr(lap_state, 'lap_distance_m', None)}",
+                        flush=True,
+                    )
+
             # Match the F1 packet path's reference lifecycle after the measured
             # recorder has observed the newest state. ACC must honour queued
             # measured-reference changes at the same start/finish boundary.
