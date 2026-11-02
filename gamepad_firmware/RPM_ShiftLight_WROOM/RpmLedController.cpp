@@ -1,11 +1,14 @@
 #include "RpmLedController.h"
 #include <Adafruit_NeoPixel.h>
+#include <Preferences.h>
 #include "Config.h"
 #include "Pins.h"
 
 namespace
 {
 Adafruit_NeoPixel strip(LED_COUNT, LED_DATA_PIN, NEO_GRB + NEO_KHZ800);
+Preferences preferences;
+bool preferencesReady = false;
 
 uint32_t lastShiftFlashMs = 0;
 bool shiftFlashOn = false;
@@ -27,10 +30,15 @@ bool longPressHandled = false;
 bool whiteTemperatureMode = false;
 uint8_t whiteTemperatureIndex = 0;
 
-// Brief warm-white pulse confirms entry/exit from temperature-selection mode.
+// Blue pulse confirms entry/exit from temperature-selection mode.
 bool modeFeedbackActive = false;
 uint32_t modeFeedbackStartMs = 0;
 constexpr uint32_t MODE_FEEDBACK_MS = 180;
+
+// Persist settings after the controls have been idle to reduce flash writes.
+bool settingsDirty = false;
+uint32_t settingsChangedAtMs = 0;
+constexpr uint32_t SETTINGS_SAVE_DELAY_MS = 750;
 
 uint8_t lastRenderedRpm = 255;
 bool lastRenderedShift = false;
@@ -48,8 +56,6 @@ constexpr uint8_t MIN_BRIGHTNESS = 5;
 constexpr uint8_t MAX_BRIGHTNESS = 255;
 constexpr uint8_t WHITE_TEMPERATURE_COUNT = 11;
 
-// From pure/cool white (index 0) through progressively warmer whites.
-// Red remains at full intensity; green and blue are reduced gradually.
 struct WhiteTone
 {
     uint8_t red;
@@ -78,6 +84,48 @@ constexpr int8_t ENCODER_TRANSITIONS[16] = {
     -1,  0,  0,  1,
      0,  1, -1,  0
 };
+
+void markSettingsChanged(uint32_t now)
+{
+    settingsDirty = true;
+    settingsChangedAtMs = now;
+}
+
+void loadSettings()
+{
+    preferencesReady = preferences.begin("rpmled", false);
+    if (!preferencesReady)
+    {
+        Serial.println("[RPM CTRL] Preferences unavailable; using defaults");
+        return;
+    }
+
+    const uint8_t storedBrightness = preferences.getUChar("brightness", LED_BRIGHTNESS);
+    const uint8_t storedWhiteIndex = preferences.getUChar("whiteTemp", 0);
+    brightnessLevel = (storedBrightness < MIN_BRIGHTNESS ||
+                       storedBrightness > MAX_BRIGHTNESS)
+        ? LED_BRIGHTNESS : storedBrightness;
+    whiteTemperatureIndex = storedWhiteIndex < WHITE_TEMPERATURE_COUNT
+        ? storedWhiteIndex : 0;
+    ledsEnabled = preferences.getBool("ledsEnabled", true);
+
+    Serial.printf("[RPM CTRL] Settings restored: brightness=%u enabled=%s whiteTemp=%u\n",
+                  brightnessLevel, ledsEnabled ? "ON" : "OFF",
+                  whiteTemperatureIndex);
+}
+
+void saveSettingsIfDue(uint32_t now)
+{
+    if (!preferencesReady || !settingsDirty ||
+        (now - settingsChangedAtMs) < SETTINGS_SAVE_DELAY_MS)
+        return;
+
+    preferences.putUChar("brightness", brightnessLevel);
+    preferences.putBool("ledsEnabled", ledsEnabled);
+    preferences.putUChar("whiteTemp", whiteTemperatureIndex);
+    settingsDirty = false;
+    Serial.println("[RPM CTRL] Settings saved");
+}
 
 uint8_t readEncoderState()
 {
@@ -126,6 +174,7 @@ bool readLocalControls(bool telemetryFresh)
             }
             encoderTransitionCount = 0;
             changed = true;
+            markSettingsChanged(millis());
         }
         else if (encoderTransitionCount <= -4)
         {
@@ -140,6 +189,7 @@ bool readLocalControls(bool telemetryFresh)
             }
             encoderTransitionCount = 0;
             changed = true;
+            markSettingsChanged(millis());
         }
     }
 
@@ -170,6 +220,7 @@ bool readLocalControls(bool telemetryFresh)
             {
                 ledsEnabled = !ledsEnabled;
                 changed = true;
+                markSettingsChanged(now);
             }
         }
     }
@@ -231,13 +282,21 @@ void render(uint8_t rpm, bool shift, bool fresh)
 
     if (!fresh)
     {
-        const WhiteTone tone = (modeFeedbackActive &&
-                                (millis() - modeFeedbackStartMs) < MODE_FEEDBACK_MS)
-            ? WHITE_TONES[WHITE_TEMPERATURE_COUNT - 1]
-            : WHITE_TONES[whiteTemperatureIndex];
-        const uint32_t white = strip.Color(tone.red, tone.green, tone.blue);
-        for (uint8_t i = 0; i < LED_COUNT; ++i)
-            strip.setPixelColor(i, white);
+        if (modeFeedbackActive &&
+            (millis() - modeFeedbackStartMs) < MODE_FEEDBACK_MS)
+        {
+            // Distinct blue pulse is easy to distinguish from every white tone.
+            const uint32_t blue = strip.Color(0, 0, 255);
+            for (uint8_t i = 0; i < LED_COUNT; ++i)
+                strip.setPixelColor(i, blue);
+        }
+        else
+        {
+            const WhiteTone tone = WHITE_TONES[whiteTemperatureIndex];
+            const uint32_t white = strip.Color(tone.red, tone.green, tone.blue);
+            for (uint8_t i = 0; i < LED_COUNT; ++i)
+                strip.setPixelColor(i, white);
+        }
     }
     else if (shift)
     {
@@ -276,6 +335,8 @@ void RpmLedController::begin()
     switchPressStartMs = switchLastChangeMs;
     longPressHandled = false;
 
+    loadSettings();
+
     Serial.printf("[RPM CTRL] EC11 ready: A=GPIO%u B=GPIO%u SW=GPIO%u\n",
                   BRIGHTNESS_ENCODER_A_PIN,
                   BRIGHTNESS_ENCODER_B_PIN,
@@ -293,6 +354,7 @@ void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetr
 {
     const bool controlsChanged = readLocalControls(telemetryFresh);
     const uint32_t now = millis();
+    saveSettingsIfDue(now);
 
     // End the one-shot mode-change pulse and restore the selected white tone.
     bool feedbackExpired = false;
