@@ -24,6 +24,7 @@ from .speech_quality import concise_engineer_text, load_speech_preferences, save
 from .llm_engineer import LLMConfig, LocalLLMEngineer
 from .pit_strategy import format_pit_fallback, assess_pit, service_plan
 from .telemetry_recording import AsyncTelemetrySessionRecorder, replay_into
+from .acc_session_recording import ACCSessionRecorder, replay_acc_into
 from .engineer.models import EngineerMessage, Priority
 from .latency import LatencyMonitor
 from .radio_transcript import RadioTranscriptStore
@@ -180,6 +181,7 @@ class RaceStateReceiver(TelemetryReceiver):
         self._coach_report_saved_for_uid = None
         self._coach_report_completed_count = -1
         self.recorder = AsyncTelemetrySessionRecorder(path=recording_path) if record_telemetry else None
+        self.acc_recorder = None
         self._recording_mode = "session"
         self._session_recording_preference = bool(record_telemetry)
         self.recording_error = None
@@ -451,6 +453,10 @@ class RaceStateReceiver(TelemetryReceiver):
         """
         if self.telemetry_mode() != "acc":
             return
+
+        acc_recorder = getattr(self, "acc_recorder", None)
+        if acc_recorder is not None:
+            acc_recorder.record(telemetry, getattr(telemetry, "last_packet_monotonic", None))
 
         stamp = getattr(telemetry, "last_packet_monotonic", None)
         if not isinstance(stamp, (int, float)):
@@ -997,7 +1003,11 @@ class RaceStateReceiver(TelemetryReceiver):
         with self._runtime_lock:
             # REC represents the normal raw Session Recording switch only.
             # Rival Reference Capture has its own auto-armed status row.
-            recording_active=(self.recorder is not None and self.recording_error is None) if self._recording_mode=="session" else False
+            recording_active=(
+                (self.acc_recorder is not None and self.acc_recorder.last_error is None)
+                if self._telemetry_mode == "acc"
+                else (self.recorder is not None and self.recording_error is None)
+            ) if self._recording_mode=="session" else False
             return {
                 "TTS": bool(getattr(self.speech.config, "enabled", False)),
                 "PTT": bool(getattr(self.ptt.config, "enabled", False)),
@@ -1215,19 +1225,25 @@ class RaceStateReceiver(TelemetryReceiver):
                 self.rival_benchmark.strict_quality=True
                 self.rival_benchmark.enabled=True
                 return True,"Automatic — Rival Reference Capture is armed"
-            if enabled and self._telemetry_mode != "live":
+            if enabled and self._telemetry_mode not in {"live", "acc"}:
                 return False, "Recording is available in Live mode only"
             self.rival_benchmark.enabled=False
             self._session_recording_preference=enabled
             if enabled:
-                if self.recorder is None:
+                if self._telemetry_mode == "acc":
+                    if self.acc_recorder is None:
+                        self.acc_recorder = ACCSessionRecorder()
+                elif self.recorder is None:
                     self.recording_error = None
                     self.recorder = AsyncTelemetrySessionRecorder()
-                print("[UI] Telemetry recording ENABLED", flush=True)
+                print(f"[UI] {self._telemetry_mode.upper()} telemetry recording ENABLED", flush=True)
                 return True, "On"
             old, self.recorder = self.recorder, None
+            old_acc, self.acc_recorder = self.acc_recorder, None
         if old is not None:
             old.close()
+        if old_acc is not None:
+            old_acc.close()
         print("[UI] Telemetry recording DISABLED", flush=True)
         return True,"Off"
 
@@ -2500,13 +2516,16 @@ class RaceStateReceiver(TelemetryReceiver):
             thread.join(timeout=2.0)
 
     def _close_recorder(self) -> None:
-        if self.recorder:
-            try:
-                self.recorder.close()
-                if self.recorder.last_error:
-                    self.recording_error = self.recorder.last_error
-            except OSError as error:
-                self.recording_error = str(error)
+        for recorder in (self.recorder, self.acc_recorder):
+            if recorder:
+                try:
+                    recorder.close()
+                    if recorder.last_error:
+                        self.recording_error = recorder.last_error
+                except OSError as error:
+                    self.recording_error = str(error)
+        self.recorder = None
+        self.acc_recorder = None
 
     def _close_capture(self) -> None:
         if self.capture:
