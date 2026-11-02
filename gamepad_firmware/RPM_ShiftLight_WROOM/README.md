@@ -5,7 +5,11 @@ Independent ESP32-WROOM controller for a 60-pixel WS2812B strip. The S3 Receiver
 ## Hardware
 
 - ESP32-WROOM STA MAC: `A0:B7:65:DD:85:04` (configured as the peer in Receiver_S3/Secrets.h)
-- WS2812B data: GPIO18
+- WS2812B data: GPIO5
+- EC11 encoder A/CLK: GPIO18 (internal pull-up)
+- EC11 encoder B/DT: GPIO19 (internal pull-up)
+- EC11 encoder common: GND
+- EC11 push switch: GPIO21 to GND (internal pull-up)
 - LED layout: 60 pixels, 30 per side, symmetrical from both outer ends toward the centre
 - External regulated 5 V supply recommended (4–5 A capacity for 60 pixels at high brightness)
 - Join ESP32 and LED supply grounds. Fit a 330–470 ohm series resistor on data and a 1000 uF capacitor across 5 V/GND near the strip.
@@ -42,3 +46,22 @@ ESP-NOW and OTA share channel 1, as in the Pedals implementation. The OTA window
 ## Disconnected receiver / normal-light mode
 
 If no valid packet from the paired S3 Receiver has been received for 300 ms, all 60 LEDs turn solid white. This is also the power-up default until the receiver is detected. As soon as valid telemetry resumes, RPM sweep and shift flashing resume automatically.
+
+
+## Local EC11 controls
+
+The EC11 is connected directly to the ESP32-WROOM; no breakout board or external pull-up resistors are required.
+
+| EC11 terminal | ESP32-WROOM |
+|---|---|
+| A / CLK | GPIO18 |
+| B / DT | GPIO19 |
+| Encoder common (C) | GND |
+| Push switch terminal 1 | GPIO21 |
+| Push switch terminal 2 | GND |
+
+- Rotate the encoder to adjust LED brightness in 10-step increments (range 5–255).
+- Press the encoder shaft to toggle the complete LED strip ON/OFF.
+- Master OFF clears every LED, including the solid-white disconnected-receiver mode.
+- These controls are handled locally by the WROOM and work without an S3 receiver or RPM telemetry.
+- WS2812B data remains on GPIO5.
