@@ -47,7 +47,7 @@ def main(*, game="f1_26", host="0.0.0.0", udp_port=20777, show_sizes=False, pack
          ptt_hid_vendor_id=0x303A, ptt_hid_product_id=0x1001, ptt_hid_usage_page=0x0001, ptt_hid_usage=0x0005,
          stt_enabled=True, stt_model="small.en", llm_enabled=False, llm_model="qwen2.5:3b",
          llm_url="http://127.0.0.1:11434/api/chat", record_telemetry=False, recording_path=None,
-         replay_file=None, replay_speed=1.0, replay_fast=False, analysis_output=None,
+         replay_file=None, acc_replay_file=None, replay_speed=1.0, replay_fast=False, analysis_output=None,
          overlay=False, overlay_click_through=False, latency_stats=False, wheel_telemetry=True, wheel_port=None, reference_lap=None, export_reference_lap_path=None, reference_lap_number=None,
          web_dash=True, dash_host="0.0.0.0", dash_port=8765,
          ai_reference=False, ai_reference_output=None, ai_reference_min_difficulty=0, rival_reference=False, rival_reference_output=None,
@@ -137,6 +137,25 @@ def main(*, game="f1_26", host="0.0.0.0", udp_port=20777, show_sizes=False, pack
         if ai_reference_output: print(f"AI ref save : {ai_reference_output}")
     print(flush=True)
     try:
+        if acc_replay_file:
+            if selected_game != "acc":
+                print("--acc-replay requires --game acc", file=sys.stderr)
+                return 2
+            if overlay:
+                print("--acc-replay currently runs the telemetry/coaching pipeline without the live overlay", file=sys.stderr)
+                return 2
+            receiver.set_telemetry_mode("acc")
+            count = replay_acc_into(receiver, acc_replay_file, speed=replay_speed, realtime=not replay_fast)
+            perf = receiver.engine.performance
+            completed = list(getattr(perf, "completed", ()) or ())
+            valid = [row for row in completed if row.get("valid")]
+            print(f"ACC replay complete: {count} snapshots | {len(completed)} completed laps | {len(valid)} valid laps", flush=True)
+            for row in completed:
+                lap_time = row.get("lap_time_s") or 0.0
+                print(f"Lap {row.get('lap')}: {'VALID' if row.get('valid') else 'INVALID'} | {lap_time:.3f}s | {row.get('sample_count', 0)} samples", flush=True)
+            receiver._close_recorder()
+            receiver.speech.close(wait=True)
+            return 0
         if overlay:
             from .overlay.runtime import run_overlay
             rc = run_overlay(receiver, game=selected_game, replay_file=replay_file, replay_speed=replay_speed,
@@ -196,7 +215,8 @@ if __name__ == "__main__":
     parser.add_argument("--capture-packets", type=int, default=0, metavar="N")
     parser.add_argument("--record-telemetry", action="store_true", help="Record the full raw UDP session for deterministic replay")
     parser.add_argument("--recording-path", default=None, help="Optional .areplay output path (implies --record-telemetry)")
-    parser.add_argument("--replay", default=None, metavar="FILE", help="Replay a V0.9.6 .areplay session instead of opening UDP")
+    parser.add_argument("--replay", default=None, metavar="FILE", help="Replay a V0.9.6 F1 UDP .areplay session")
+    parser.add_argument("--acc-replay", default=None, metavar="FILE", help="Replay a decoded ACC .accjsonl session without launching ACC")
     parser.add_argument("--replay-browser", action="store_true", help="Start replay mode with the newest stored recording, then choose recordings from Control Center")
     parser.add_argument("--replay-speed", type=float, default=1.0, metavar="N", help="Replay timing multiplier, e.g. 2 = twice as fast")
     parser.add_argument("--replay-fast", action="store_true", help="Replay without sleeping; deterministic rapid analysis/test mode")
@@ -286,7 +306,8 @@ if __name__ == "__main__":
     if not 0 <= args.capture_packets <= 2000: parser.error("--capture-packets must be 1..2000 (0 disables capture)")
     if args.replay_speed <= 0: parser.error("--replay-speed must be greater than zero")
     if not 0 <= args.ai_reference_min_difficulty <= 110: parser.error("--ai-reference-min-difficulty must be 0..110")
-    if args.replay and (args.record_telemetry or args.recording_path): parser.error("--replay cannot be combined with telemetry recording")
+    if args.replay and args.acc_replay: parser.error("--replay and --acc-replay cannot be combined")
+    if (args.replay or args.acc_replay) and (args.record_telemetry or args.recording_path): parser.error("Replay cannot be combined with telemetry recording")
     if args.overlay_click_through and not args.overlay: parser.error("--overlay-click-through requires --overlay")
     if not 1 <= args.dash_port <= 65535: parser.error("--dash-port must be 1..65535")
     if args.overlay and args.ptt and args.ptt_backend != "hid":
@@ -303,7 +324,9 @@ if __name__ == "__main__":
         llm_enabled=bool(args.llm and not args.no_llm), llm_model=args.llm_model, llm_url=args.llm_url,
         record_telemetry=args.record_telemetry or bool(args.recording_path),
         recording_path=Path(args.recording_path) if args.recording_path else None,
-        replay_file=Path(args.replay) if args.replay else None, replay_speed=args.replay_speed, replay_fast=args.replay_fast,
+        replay_file=Path(args.replay) if args.replay else None,
+        acc_replay_file=Path(args.acc_replay) if args.acc_replay else None,
+        replay_speed=args.replay_speed, replay_fast=args.replay_fast,
         analysis_output=Path(args.analysis_output) if args.analysis_output else None,
         overlay=args.overlay, overlay_click_through=args.overlay_click_through, latency_stats=args.latency_stats,
         web_dash=not args.no_web_dash, dash_host=args.dash_host, dash_port=args.dash_port,
