@@ -20,6 +20,12 @@ int8_t encoderTransitionCount = 0;
 bool switchRawState = HIGH;
 bool switchStableState = HIGH;
 uint32_t switchLastChangeMs = 0;
+uint32_t switchPressStartMs = 0;
+bool longPressHandled = false;
+
+// Standalone white-light controls are available only without fresh receiver data.
+bool whiteTemperatureMode = false;
+uint8_t whiteTemperatureIndex = 0;
 
 uint8_t lastRenderedRpm = 255;
 bool lastRenderedShift = false;
@@ -27,14 +33,40 @@ bool lastRenderedFresh = false;
 bool lastRenderedShiftFlash = false;
 uint8_t lastRenderedBrightness = 0;
 bool lastRenderedEnabled = false;
+uint8_t lastRenderedWhiteIndex = 255;
+bool lastRenderedWhiteMode = false;
 
 constexpr uint32_t SWITCH_DEBOUNCE_MS = 35;
+constexpr uint32_t LONG_PRESS_MS = 800;
 constexpr uint8_t BRIGHTNESS_STEP = 10;
 constexpr uint8_t MIN_BRIGHTNESS = 5;
 constexpr uint8_t MAX_BRIGHTNESS = 255;
+constexpr uint8_t WHITE_TEMPERATURE_COUNT = 11;
+
+// From pure/cool white (index 0) through progressively warmer whites.
+// Red remains at full intensity; green and blue are reduced gradually.
+struct WhiteTone
+{
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+};
+
+constexpr WhiteTone WHITE_TONES[WHITE_TEMPERATURE_COUNT] = {
+    {255, 255, 255}, // Pure white
+    {255, 250, 245},
+    {255, 245, 235},
+    {255, 240, 225},
+    {255, 235, 215},
+    {255, 230, 205},
+    {255, 225, 195},
+    {255, 220, 185},
+    {255, 215, 175},
+    {255, 205, 160},
+    {255, 195, 145}  // Warm white
+};
 
 // Index: previous AB state (2 bits), followed by current AB state (2 bits).
-// Values are +1/-1 for valid quadrature steps, 0 for invalid/no movement.
 constexpr int8_t ENCODER_TRANSITIONS[16] = {
      0, -1,  1,  0,
      1,  0,  0, -1,
@@ -49,7 +81,22 @@ uint8_t readEncoderState()
          digitalRead(BRIGHTNESS_ENCODER_B_PIN));
 }
 
-bool readLocalControls()
+void adjustBrightness(int8_t direction)
+{
+    if (direction > 0)
+    {
+        const uint16_t next = static_cast<uint16_t>(brightnessLevel) + BRIGHTNESS_STEP;
+        brightnessLevel = next > MAX_BRIGHTNESS
+            ? MAX_BRIGHTNESS : static_cast<uint8_t>(next);
+    }
+    else
+    {
+        brightnessLevel = brightnessLevel > (MIN_BRIGHTNESS + BRIGHTNESS_STEP - 1)
+            ? brightnessLevel - BRIGHTNESS_STEP : MIN_BRIGHTNESS;
+    }
+}
+
+bool readLocalControls(bool telemetryFresh)
 {
     bool changed = false;
     const uint8_t currentState = readEncoderState();
@@ -63,16 +110,29 @@ bool readLocalControls()
 
         if (encoderTransitionCount >= 4)
         {
-            const uint16_t next = static_cast<uint16_t>(brightnessLevel) + BRIGHTNESS_STEP;
-            brightnessLevel = next > MAX_BRIGHTNESS
-                ? MAX_BRIGHTNESS : static_cast<uint8_t>(next);
+            if (!telemetryFresh && whiteTemperatureMode)
+            {
+                if (whiteTemperatureIndex < WHITE_TEMPERATURE_COUNT - 1)
+                    ++whiteTemperatureIndex;
+            }
+            else
+            {
+                adjustBrightness(1);
+            }
             encoderTransitionCount = 0;
             changed = true;
         }
         else if (encoderTransitionCount <= -4)
         {
-            brightnessLevel = brightnessLevel > (MIN_BRIGHTNESS + BRIGHTNESS_STEP - 1)
-                ? brightnessLevel - BRIGHTNESS_STEP : MIN_BRIGHTNESS;
+            if (!telemetryFresh && whiteTemperatureMode)
+            {
+                if (whiteTemperatureIndex > 0)
+                    --whiteTemperatureIndex;
+            }
+            else
+            {
+                adjustBrightness(-1);
+            }
             encoderTransitionCount = 0;
             changed = true;
         }
@@ -87,15 +147,49 @@ bool readLocalControls()
         switchLastChangeMs = now;
     }
 
+    // Debounce the integrated EC11 push switch.
     if ((now - switchLastChangeMs) >= SWITCH_DEBOUNCE_MS &&
         switchReading != switchStableState)
     {
         switchStableState = switchReading;
+
         if (switchStableState == LOW)
         {
-            ledsEnabled = !ledsEnabled;
-            changed = true;
+            switchPressStartMs = now;
+            longPressHandled = false;
         }
+        else
+        {
+            // A short click retains the master ON/OFF function.
+            if (!longPressHandled)
+            {
+                ledsEnabled = !ledsEnabled;
+                changed = true;
+            }
+        }
+    }
+
+    // Long press enters/exits white-temperature selection only when disconnected.
+    if (switchStableState == LOW && !longPressHandled &&
+        (now - switchPressStartMs) >= LONG_PRESS_MS)
+    {
+        longPressHandled = true;
+        if (!telemetryFresh)
+        {
+            whiteTemperatureMode = !whiteTemperatureMode;
+            encoderTransitionCount = 0;
+            changed = true;
+            Serial.printf("[RPM CTRL] White temperature selection %s\n",
+                          whiteTemperatureMode ? "ON" : "OFF");
+        }
+    }
+
+    // Always leave the standalone selection mode when receiver telemetry returns.
+    if (telemetryFresh && whiteTemperatureMode)
+    {
+        whiteTemperatureMode = false;
+        encoderTransitionCount = 0;
+        changed = true;
     }
 
     return changed;
@@ -111,7 +205,7 @@ uint32_t colourForPosition(uint8_t positionPercent)
 
 void render(uint8_t rpm, bool shift, bool fresh)
 {
-    // Preserve the brighter disconnected-white mode, scaled by user brightness.
+    // Preserve the brighter disconnected-light mode, scaled by user brightness.
     uint16_t outputBrightness = brightnessLevel;
     if (!fresh) {
         outputBrightness = (static_cast<uint16_t>(brightnessLevel) *
@@ -121,18 +215,19 @@ void render(uint8_t rpm, bool shift, bool fresh)
     strip.setBrightness(static_cast<uint8_t>(outputBrightness));
     strip.clear();
 
-    // Master OFF overrides RPM, shift flash, and disconnected white mode.
+    // Master OFF overrides all lighting modes.
     if (!ledsEnabled)
     {
         strip.show();
         return;
     }
 
-    // If the S3 receiver is absent or telemetry times out, show solid white.
     if (!fresh)
     {
+        const WhiteTone tone = WHITE_TONES[whiteTemperatureIndex];
+        const uint32_t white = strip.Color(tone.red, tone.green, tone.blue);
         for (uint8_t i = 0; i < LED_COUNT; ++i)
-            strip.setPixelColor(i, strip.Color(255, 255, 255));
+            strip.setPixelColor(i, white);
     }
     else if (shift)
     {
@@ -168,11 +263,15 @@ void RpmLedController::begin()
 
     switchRawState = switchStableState = digitalRead(LED_MASTER_TOGGLE_PIN);
     switchLastChangeMs = millis();
+    switchPressStartMs = switchLastChangeMs;
+    longPressHandled = false;
 
     Serial.printf("[RPM CTRL] EC11 ready: A=GPIO%u B=GPIO%u SW=GPIO%u\n",
                   BRIGHTNESS_ENCODER_A_PIN,
                   BRIGHTNESS_ENCODER_B_PIN,
                   LED_MASTER_TOGGLE_PIN);
+    Serial.printf("[RPM CTRL] Standalone white mode: %u temperature steps\n",
+                  WHITE_TEMPERATURE_COUNT);
 
     strip.begin();
     strip.setBrightness(LED_BRIGHTNESS);
@@ -182,7 +281,7 @@ void RpmLedController::begin()
 
 void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetryFresh)
 {
-    const bool controlsChanged = readLocalControls();
+    const bool controlsChanged = readLocalControls(telemetryFresh);
     const uint32_t now = millis();
 
     if (shiftLight && telemetryFresh && (now - lastShiftFlashMs >= SHIFT_FLASH_PERIOD_MS))
@@ -198,7 +297,8 @@ void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetr
     if (controlsChanged || rpmPercent != lastRenderedRpm ||
         shiftLight != lastRenderedShift || telemetryFresh != lastRenderedFresh ||
         shiftFlashOn != lastRenderedShiftFlash || brightnessLevel != lastRenderedBrightness ||
-        ledsEnabled != lastRenderedEnabled)
+        ledsEnabled != lastRenderedEnabled || whiteTemperatureIndex != lastRenderedWhiteIndex ||
+        whiteTemperatureMode != lastRenderedWhiteMode)
     {
         render(rpmPercent, shiftLight, telemetryFresh);
         lastRenderedRpm = rpmPercent;
@@ -207,5 +307,7 @@ void RpmLedController::update(uint8_t rpmPercent, bool shiftLight, bool telemetr
         lastRenderedShiftFlash = shiftFlashOn;
         lastRenderedBrightness = brightnessLevel;
         lastRenderedEnabled = ledsEnabled;
+        lastRenderedWhiteIndex = whiteTemperatureIndex;
+        lastRenderedWhiteMode = whiteTemperatureMode;
     }
 }
