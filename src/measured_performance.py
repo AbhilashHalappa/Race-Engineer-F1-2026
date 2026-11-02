@@ -464,7 +464,20 @@ class MeasuredPerformanceRecorder:
         if self.current_lap == lap and self._last_observed_lap_time is not None and float(raw_t)+1.0 < float(self._last_observed_lap_time):
             self.current_lap_replay_seek_detected=True
         self._last_observed_distance=float(d); self._last_observed_lap_time=float(raw_t)
-        start_anchor=(d <= 25.0 and raw_t <= 2.0)
+        # ACC's normalized lap position is referenced to its own start/finish
+        # crossing.  The learned physical-distance axis can have a small origin
+        # offset, so the first post-crossing sample may be >25 m even though the
+        # car is still in the first second of the lap.  Use normalized position
+        # only for ACC; keep the established F1 distance anchor unchanged.
+        extended = getattr(state, "extended", None)
+        is_acc_state = isinstance(extended, dict) and extended.get("game_id") == "acc"
+        normalized_position = _finite(extended.get("normalized_car_position")) if is_acc_state else None
+        acc_start_anchor = (
+            normalized_position is not None
+            and 0.0 <= float(normalized_position) <= 0.01
+            and raw_t <= 2.0
+        )
+        start_anchor = (d <= 25.0 and raw_t <= 2.0) or acc_start_anchor
         if self.current_lap is None:
             self.current_lap=lap
             self.current_lap_valid=c.lap.lap_valid
