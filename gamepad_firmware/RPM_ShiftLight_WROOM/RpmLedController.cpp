@@ -56,7 +56,7 @@ bool readLocalControls()
     // Report every raw encoder transition so wiring and GPIO input levels can
     // be verified independently of the brightness decoder.
     if (encoderState != lastDebugEncoderState) {
-        Serial.printf("[RPM CTRL] Encoder A=%u B=%u state=%u\\n",
+        Serial.printf("[RPM CTRL] Encoder A=%u B=%u state=%u\n",
                       (encoderState & 0x02) ? 1U : 0U,
                       (encoderState & 0x01) ? 1U : 0U,
                       encoderState);
@@ -90,7 +90,7 @@ bool readLocalControls()
     // The EC11 push switch is active LOW and is independent of ESP-NOW.
     const bool buttonReading = digitalRead(LED_MASTER_TOGGLE_PIN);
     if (buttonReading != lastDebugButtonReading) {
-        Serial.printf("[RPM CTRL] Master button GPIO%d=%s\\n",
+        Serial.printf("[RPM CTRL] Master button GPIO%d=%s\n",
                       LED_MASTER_TOGGLE_PIN,
                       buttonReading == LOW ? "LOW/PRESSED" : "HIGH/RELEASED");
         lastDebugButtonReading = buttonReading;
@@ -107,7 +107,7 @@ bool readLocalControls()
         stableButtonState = buttonReading;
         if (stableButtonState == LOW) {
             ledsEnabled = !ledsEnabled;
-            Serial.printf("[RPM CTRL] LEDs %s\\n", ledsEnabled ? "ON" : "OFF");
+            Serial.printf("[RPM CTRL] LEDs %s\n", ledsEnabled ? "ON" : "OFF");
             changed = true;
         }
     }
@@ -186,11 +186,11 @@ void RpmLedController::begin()
     stableButtonState = lastButtonReading;
     lastDebugButtonReading = lastButtonReading;
     lastDebugEncoderState = encoderPreviousState;
-    Serial.printf("[RPM CTRL] Inputs ready: A=GPIO%d B=GPIO%d SW=GPIO%d\\n",
+    Serial.printf("[RPM CTRL] Inputs ready: A=GPIO%d B=GPIO%d SW=GPIO%d\n",
                   BRIGHTNESS_ENCODER_A_PIN,
                   BRIGHTNESS_ENCODER_B_PIN,
                   LED_MASTER_TOGGLE_PIN);
-    Serial.printf("[RPM CTRL] Initial levels: A=%u B=%u SW=%u\\n",
+    Serial.printf("[RPM CTRL] Initial levels: A=%u B=%u SW=%u\n",
                   digitalRead(BRIGHTNESS_ENCODER_A_PIN),
                   digitalRead(BRIGHTNESS_ENCODER_B_PIN),
                   digitalRead(LED_MASTER_TOGGLE_PIN));
