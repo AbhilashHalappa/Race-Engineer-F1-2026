@@ -53,13 +53,19 @@ def _sample_value(sample: Any, field: str):
         return sample.get(field)
     return getattr(sample, field, None)
 
-def _trace_has_lap_start(samples: dict) -> bool:
+def _trace_has_lap_start(samples: dict, *, anchored: bool = False) -> bool:
     """Require an S/F-anchored trace without rescanning the whole lap.
 
     Measured-performance bins are 5 m keyed dictionaries.  Check only the
     possible start bins; this replaces an O(n) full-trace min() operation that
     used to run several times for every overlay frame.
     """
+    # ACC's learned distance axis can start at a non-zero physical offset even
+    # when the lap recorder has authoritatively confirmed the S/F crossing.
+    # Trust that explicit lap metadata; do not mistake the map origin for a
+    # missing start sample. F1 and external traces retain the distance check.
+    if anchored:
+        return bool(samples)
     if not samples:
         return False
     for key in (0, 0.0, 5, 5.0, 10, 10.0, 15, 15.0, 20, 20.0, 25, 25.0):
@@ -740,7 +746,9 @@ def _aligned_live_trace(performance, reference: dict | None) -> list[tuple[float
     if reference is None:return []
     current,reference_samples=_sample_maps(performance,reference)
     if not current or not reference_samples:return []
-    if not (_trace_has_lap_start(current) and _trace_has_lap_start(reference_samples)):return []
+    current_anchored = bool(getattr(performance, "current_lap_started_clean", False))
+    reference_anchored = bool(reference.get("lap_start_anchored"))
+    if not (_trace_has_lap_start(current, anchored=current_anchored) and _trace_has_lap_start(reference_samples, anchored=reference_anchored)):return []
     latest=_numeric_last_key(current)
     if latest is None:return []
     key=(id(current),id(reference))
@@ -1882,8 +1890,14 @@ def build_overlay_snapshot(state, performance, *, connected: bool, now: float | 
         not session_finished
         and reference is not None
         and current_samples
-        and bool(getattr(performance, "current_lap_started_clean", _trace_has_lap_start(current_samples)))
-        and _trace_has_lap_start(reference.get("_samples", {}) or {})
+        and _trace_has_lap_start(
+            current_samples,
+            anchored=bool(getattr(performance, "current_lap_started_clean", False)),
+        )
+        and _trace_has_lap_start(
+            reference.get("_samples", {}) or {},
+            anchored=bool(reference.get("lap_start_anchored")),
+        )
         and lap_number is not None
         and (getattr(performance, "reference_mode", "best") == "external" or lap_number != reference.get("lap"))
     )
