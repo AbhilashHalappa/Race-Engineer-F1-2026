@@ -47,7 +47,7 @@ bool pressedEvent(TestButton &button, uint32_t now)
     {
         button.rawState = reading;
         button.lastChangeMs = now;
-        Serial.printf("[RPM TEST] GPIO%u raw=%s\\n",
+        Serial.printf("[RPM TEST] GPIO%u raw=%s\n",
                       button.pin, reading == LOW ? "LOW" : "HIGH");
     }
 
@@ -57,7 +57,7 @@ bool pressedEvent(TestButton &button, uint32_t now)
         button.stableState = reading;
         if (button.stableState == LOW)
         {
-            Serial.printf("[RPM TEST] GPIO%u PRESSED\\n", button.pin);
+            Serial.printf("[RPM TEST] GPIO%u PRESSED\n", button.pin);
             return true;
         }
     }
@@ -73,7 +73,7 @@ bool readLocalControls()
     {
         brightnessLevel = brightnessLevel > (MIN_BRIGHTNESS + BRIGHTNESS_STEP - 1)
             ? brightnessLevel - BRIGHTNESS_STEP : MIN_BRIGHTNESS;
-        Serial.printf("[RPM TEST] Brightness DOWN: %u/255\\n", brightnessLevel);
+        Serial.printf("[RPM TEST] Brightness DOWN: %u/255\n", brightnessLevel);
         changed = true;
     }
 
@@ -81,14 +81,14 @@ bool readLocalControls()
     {
         const uint16_t next = static_cast<uint16_t>(brightnessLevel) + BRIGHTNESS_STEP;
         brightnessLevel = next > MAX_BRIGHTNESS ? MAX_BRIGHTNESS : static_cast<uint8_t>(next);
-        Serial.printf("[RPM TEST] Brightness UP: %u/255\\n", brightnessLevel);
+        Serial.printf("[RPM TEST] Brightness UP: %u/255\n", brightnessLevel);
         changed = true;
     }
 
     if (pressedEvent(masterButton, now))
     {
         ledsEnabled = !ledsEnabled;
-        Serial.printf("[RPM TEST] LEDs %s\\n", ledsEnabled ? "ON" : "OFF");
+        Serial.printf("[RPM TEST] LEDs %s\n", ledsEnabled ? "ON" : "OFF");
         changed = true;
     }
 
@@ -168,10 +168,10 @@ void RpmLedController::begin()
     brightnessUpButton.lastChangeMs = now;
     masterButton.lastChangeMs = now;
 
-    Serial.printf("[RPM TEST] BUTTON DIAGNOSTIC V1.1.1\\n");
-    Serial.printf("[RPM TEST] GPIO%u=Brightness DOWN, GPIO%u=Brightness UP, GPIO%u=Master ON/OFF\\n",
+    Serial.printf("[RPM TEST] BUTTON DIAGNOSTIC V1.1.1\n");
+    Serial.printf("[RPM TEST] GPIO%u=Brightness DOWN, GPIO%u=Brightness UP, GPIO%u=Master ON/OFF\n",
                   BRIGHTNESS_ENCODER_A_PIN, BRIGHTNESS_ENCODER_B_PIN, LED_MASTER_TOGGLE_PIN);
-    Serial.printf("[RPM TEST] Initial levels: GPIO%u=%u GPIO%u=%u GPIO%u=%u\\n",
+    Serial.printf("[RPM TEST] Initial levels: GPIO%u=%u GPIO%u=%u GPIO%u=%u\n",
                   BRIGHTNESS_ENCODER_A_PIN, brightnessDownButton.stableState,
                   BRIGHTNESS_ENCODER_B_PIN, brightnessUpButton.stableState,
                   LED_MASTER_TOGGLE_PIN, masterButton.stableState);
