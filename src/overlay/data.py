@@ -794,10 +794,10 @@ def _live_delta(performance, reference: dict | None, trace: list[tuple[float, fl
     return trace[-1][1] if trace else None
 
 
-def _aligned_trace_from_maps(current_samples: dict, reference_samples: dict) -> list[tuple[float, float]]:
+def _aligned_trace_from_maps(current_samples: dict, reference_samples: dict, *, current_anchored: bool = False, reference_anchored: bool = False) -> list[tuple[float, float]]:
     if not current_samples or not reference_samples:
         return []
-    if not (_trace_has_lap_start(current_samples) and _trace_has_lap_start(reference_samples)):
+    if not (_trace_has_lap_start(current_samples, anchored=current_anchored) and _trace_has_lap_start(reference_samples, anchored=reference_anchored)):
         return []
     if len(current_samples) <= len(reference_samples):
         common = [float(d) for d in current_samples if d in reference_samples]
@@ -1390,7 +1390,11 @@ def _completed_section_history(comparison_lap: dict | None, reference: dict | No
     """Compatibility name; completed-lap history now includes physical straights and turns."""
     if comparison_lap is None or reference is None:
         return ()
-    trace = _aligned_trace_from_maps(comparison_lap.get("_samples", {}) or {}, reference.get("_samples", {}) or {})
+    trace = _aligned_trace_from_maps(
+        comparison_lap.get("_samples", {}) or {}, reference.get("_samples", {}) or {},
+        current_anchored=bool(comparison_lap.get("lap_start_anchored")),
+        reference_anchored=bool(reference.get("lap_start_anchored")),
+    )
     segments = _track_segments(reference, track_length_m, track_name=track_name)
     return _segment_history_from_trace(trace, reference, track_length_m, segments=segments)
 
