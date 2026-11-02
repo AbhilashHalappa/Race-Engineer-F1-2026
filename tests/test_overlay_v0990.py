@@ -70,3 +70,38 @@ def test_overlay_snapshot_clamps_inputs_and_waits_without_reference():
     assert snap.reference_lap is None
     assert snap.event_profile == "PRACTICE"
     assert snap.connected is False
+
+
+def test_acc_nonzero_distance_origin_does_not_block_live_overlay():
+    state=RaceState(player_index=0, player=CarState(index=0))
+    state.extended={"game_id":"acc"}
+    state.player.lap.current_lap=2
+    state.player.lap.lap_distance_m=44.0
+    state.player.lap.current_lap_time_s=1.0
+    state.player.lap.lap_valid=True
+
+    reference_samples={
+        34.0:{"d":34.0,"t":0.0,"speed":180,"throttle":1.0,"brake":0.0,"steering":0.0,"gear":5,"rpm":9000},
+        39.0:{"d":39.0,"t":0.5,"speed":200,"throttle":1.0,"brake":0.0,"steering":0.0,"gear":6,"rpm":9500},
+        44.0:{"d":44.0,"t":1.0,"speed":220,"throttle":1.0,"brake":0.0,"steering":0.0,"gear":6,"rpm":10000},
+    }
+    current_samples={
+        34.0:Sample(34.0,0.0,180,1.0,0.0,0.0,5,9000),
+        39.0:Sample(39.0,0.55,200,1.0,0.0,0.0,6,9500),
+        44.0:Sample(44.0,1.10,220,1.0,0.0,0.0,6,10000),
+    }
+    reference={
+        "lap":1,"valid":True,"lap_time_s":100.0,
+        "lap_start_anchored":True,"_samples":reference_samples,
+    }
+    perf=SimpleNamespace(
+        completed=[reference],samples=current_samples,reference_mode="best",
+        manual_reference_lap=None,event_context={},
+        current_lap_started_clean=True,
+    )
+
+    snap=build_overlay_snapshot(state,perf,connected=True)
+    assert snap.reference_lap == 1
+    assert snap.coach_live is True
+    assert snap.live_delta_s is not None
+    assert abs(snap.live_delta_s - 0.10) < 1e-9
