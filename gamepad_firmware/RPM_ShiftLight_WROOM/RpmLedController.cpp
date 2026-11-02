@@ -15,7 +15,9 @@ bool ledsEnabled = true;
 
 uint8_t encoderPreviousState = 0;
 int8_t encoderTransitionCount = 0;
+uint8_t lastDebugEncoderState = 0xFF;
 bool lastButtonReading = HIGH;
+bool lastDebugButtonReading = HIGH;
 bool stableButtonState = HIGH;
 uint32_t lastButtonChangeMs = 0;
 
@@ -51,6 +53,16 @@ bool readLocalControls()
         (digitalRead(BRIGHTNESS_ENCODER_A_PIN) ? 0x02 : 0x00) |
         (digitalRead(BRIGHTNESS_ENCODER_B_PIN) ? 0x01 : 0x00);
 
+    // Report every raw encoder transition so wiring and GPIO input levels can
+    // be verified independently of the brightness decoder.
+    if (encoderState != lastDebugEncoderState) {
+        Serial.printf("[RPM CTRL] Encoder A=%u B=%u state=%u\\n",
+                      (encoderState & 0x02) ? 1U : 0U,
+                      (encoderState & 0x01) ? 1U : 0U,
+                      encoderState);
+        lastDebugEncoderState = encoderState;
+    }
+
     encoderTransitionCount += encoderStep(encoderPreviousState, encoderState);
     encoderPreviousState = encoderState;
 
@@ -77,6 +89,12 @@ bool readLocalControls()
 
     // The EC11 push switch is active LOW and is independent of ESP-NOW.
     const bool buttonReading = digitalRead(LED_MASTER_TOGGLE_PIN);
+    if (buttonReading != lastDebugButtonReading) {
+        Serial.printf("[RPM CTRL] Master button GPIO%d=%s\\n",
+                      LED_MASTER_TOGGLE_PIN,
+                      buttonReading == LOW ? "LOW/PRESSED" : "HIGH/RELEASED");
+        lastDebugButtonReading = buttonReading;
+    }
     if (buttonReading != lastButtonReading)
     {
         lastButtonReading = buttonReading;
@@ -89,6 +107,7 @@ bool readLocalControls()
         stableButtonState = buttonReading;
         if (stableButtonState == LOW) {
             ledsEnabled = !ledsEnabled;
+            Serial.printf("[RPM CTRL] LEDs %s\\n", ledsEnabled ? "ON" : "OFF");
             changed = true;
         }
     }
@@ -165,6 +184,16 @@ void RpmLedController::begin()
 
     lastButtonReading = digitalRead(LED_MASTER_TOGGLE_PIN);
     stableButtonState = lastButtonReading;
+    lastDebugButtonReading = lastButtonReading;
+    lastDebugEncoderState = encoderPreviousState;
+    Serial.printf("[RPM CTRL] Inputs ready: A=GPIO%d B=GPIO%d SW=GPIO%d\\n",
+                  BRIGHTNESS_ENCODER_A_PIN,
+                  BRIGHTNESS_ENCODER_B_PIN,
+                  LED_MASTER_TOGGLE_PIN);
+    Serial.printf("[RPM CTRL] Initial levels: A=%u B=%u SW=%u\\n",
+                  digitalRead(BRIGHTNESS_ENCODER_A_PIN),
+                  digitalRead(BRIGHTNESS_ENCODER_B_PIN),
+                  digitalRead(LED_MASTER_TOGGLE_PIN));
     lastButtonChangeMs = millis();
 
     strip.begin();
