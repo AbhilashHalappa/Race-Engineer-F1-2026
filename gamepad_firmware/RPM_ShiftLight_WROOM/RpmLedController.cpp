@@ -13,13 +13,19 @@ bool shiftFlashOn = false;
 uint8_t brightnessLevel = LED_BRIGHTNESS;
 bool ledsEnabled = true;
 
-uint8_t encoderPreviousState = 0;
-int8_t encoderTransitionCount = 0;
-uint8_t lastDebugEncoderState = 0xFF;
-bool lastButtonReading = HIGH;
-bool lastDebugButtonReading = HIGH;
-bool stableButtonState = HIGH;
-uint32_t lastButtonChangeMs = 0;
+// TEMPORARY GPIO TEST: treat the three EC11 connections as independent
+// active-LOW push buttons. This isolates GPIO/button detection from quadrature.
+struct TestButton
+{
+    uint8_t pin;
+    bool rawState;
+    bool stableState;
+    uint32_t lastChangeMs;
+};
+
+TestButton brightnessDownButton = {BRIGHTNESS_ENCODER_A_PIN, HIGH, HIGH, 0};
+TestButton brightnessUpButton   = {BRIGHTNESS_ENCODER_B_PIN, HIGH, HIGH, 0};
+TestButton masterButton         = {LED_MASTER_TOGGLE_PIN, HIGH, HIGH, 0};
 
 uint8_t lastRenderedRpm = 255;
 bool lastRenderedShift = false;
@@ -28,88 +34,62 @@ bool lastRenderedShiftFlash = false;
 uint8_t lastRenderedBrightness = 0;
 bool lastRenderedEnabled = false;
 
-constexpr uint32_t BUTTON_DEBOUNCE_MS = 35;
+constexpr uint32_t BUTTON_DEBOUNCE_MS = 25;
 constexpr uint8_t BRIGHTNESS_STEP = 10;
 constexpr uint8_t MIN_BRIGHTNESS = 5;
 constexpr uint8_t MAX_BRIGHTNESS = 255;
 
-// Quadrature transition decoder. A complete detent produces +4 or -4.
-int8_t encoderStep(uint8_t previous, uint8_t current)
+// Returns true once for each debounced press (not on release).
+bool pressedEvent(TestButton &button, uint32_t now)
 {
-    static const int8_t table[16] = {
-         0, -1,  1,  0,
-         1,  0,  0, -1,
-        -1,  0,  0,  1,
-         0,  1, -1,  0
-    };
-    return table[(previous << 2) | current];
+    const bool reading = digitalRead(button.pin);
+    if (reading != button.rawState)
+    {
+        button.rawState = reading;
+        button.lastChangeMs = now;
+        Serial.printf("[RPM TEST] GPIO%u raw=%s\\n",
+                      button.pin, reading == LOW ? "LOW" : "HIGH");
+    }
+
+    if ((now - button.lastChangeMs) >= BUTTON_DEBOUNCE_MS &&
+        reading != button.stableState)
+    {
+        button.stableState = reading;
+        if (button.stableState == LOW)
+        {
+            Serial.printf("[RPM TEST] GPIO%u PRESSED\\n", button.pin);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool readLocalControls()
 {
     bool changed = false;
+    const uint32_t now = millis();
 
-    const uint8_t encoderState =
-        (digitalRead(BRIGHTNESS_ENCODER_A_PIN) ? 0x02 : 0x00) |
-        (digitalRead(BRIGHTNESS_ENCODER_B_PIN) ? 0x01 : 0x00);
-
-    // Report every raw encoder transition so wiring and GPIO input levels can
-    // be verified independently of the brightness decoder.
-    if (encoderState != lastDebugEncoderState) {
-        Serial.printf("[RPM CTRL] Encoder A=%u B=%u state=%u\n",
-                      (encoderState & 0x02) ? 1U : 0U,
-                      (encoderState & 0x01) ? 1U : 0U,
-                      encoderState);
-        lastDebugEncoderState = encoderState;
-    }
-
-    encoderTransitionCount += encoderStep(encoderPreviousState, encoderState);
-    encoderPreviousState = encoderState;
-
-    if (encoderTransitionCount >= 4)
+    if (pressedEvent(brightnessDownButton, now))
     {
-        encoderTransitionCount = 0;
-        const uint16_t next = static_cast<uint16_t>(brightnessLevel) + BRIGHTNESS_STEP;
-        const uint8_t value = next > MAX_BRIGHTNESS ? MAX_BRIGHTNESS : static_cast<uint8_t>(next);
-        if (value != brightnessLevel) {
-            brightnessLevel = value;
-            changed = true;
-        }
-    }
-    else if (encoderTransitionCount <= -4)
-    {
-        encoderTransitionCount = 0;
-        const uint8_t value = brightnessLevel > (MIN_BRIGHTNESS + BRIGHTNESS_STEP - 1)
+        brightnessLevel = brightnessLevel > (MIN_BRIGHTNESS + BRIGHTNESS_STEP - 1)
             ? brightnessLevel - BRIGHTNESS_STEP : MIN_BRIGHTNESS;
-        if (value != brightnessLevel) {
-            brightnessLevel = value;
-            changed = true;
-        }
+        Serial.printf("[RPM TEST] Brightness DOWN: %u/255\\n", brightnessLevel);
+        changed = true;
     }
 
-    // The EC11 push switch is active LOW and is independent of ESP-NOW.
-    const bool buttonReading = digitalRead(LED_MASTER_TOGGLE_PIN);
-    if (buttonReading != lastDebugButtonReading) {
-        Serial.printf("[RPM CTRL] Master button GPIO%d=%s\n",
-                      LED_MASTER_TOGGLE_PIN,
-                      buttonReading == LOW ? "LOW/PRESSED" : "HIGH/RELEASED");
-        lastDebugButtonReading = buttonReading;
-    }
-    if (buttonReading != lastButtonReading)
+    if (pressedEvent(brightnessUpButton, now))
     {
-        lastButtonReading = buttonReading;
-        lastButtonChangeMs = millis();
+        const uint16_t next = static_cast<uint16_t>(brightnessLevel) + BRIGHTNESS_STEP;
+        brightnessLevel = next > MAX_BRIGHTNESS ? MAX_BRIGHTNESS : static_cast<uint8_t>(next);
+        Serial.printf("[RPM TEST] Brightness UP: %u/255\\n", brightnessLevel);
+        changed = true;
     }
 
-    if ((millis() - lastButtonChangeMs) >= BUTTON_DEBOUNCE_MS &&
-        buttonReading != stableButtonState)
+    if (pressedEvent(masterButton, now))
     {
-        stableButtonState = buttonReading;
-        if (stableButtonState == LOW) {
-            ledsEnabled = !ledsEnabled;
-            Serial.printf("[RPM CTRL] LEDs %s\n", ledsEnabled ? "ON" : "OFF");
-            changed = true;
-        }
+        ledsEnabled = !ledsEnabled;
+        Serial.printf("[RPM TEST] LEDs %s\\n", ledsEnabled ? "ON" : "OFF");
+        changed = true;
     }
 
     return changed;
@@ -125,8 +105,7 @@ uint32_t colourForPosition(uint8_t positionPercent)
 
 void render(uint8_t rpm, bool shift, bool fresh)
 {
-    // Preserve the original brighter disconnected-white mode while applying
-    // the encoder's brightness adjustment to both operating modes.
+    // Keep the original brighter disconnected-white mode, scaled by test brightness.
     uint16_t outputBrightness = brightnessLevel;
     if (!fresh) {
         outputBrightness = (static_cast<uint16_t>(brightnessLevel) *
@@ -178,23 +157,25 @@ void RpmLedController::begin()
     pinMode(BRIGHTNESS_ENCODER_B_PIN, INPUT_PULLUP);
     pinMode(LED_MASTER_TOGGLE_PIN, INPUT_PULLUP);
 
-    encoderPreviousState =
-        (digitalRead(BRIGHTNESS_ENCODER_A_PIN) ? 0x02 : 0x00) |
-        (digitalRead(BRIGHTNESS_ENCODER_B_PIN) ? 0x01 : 0x00);
+    const uint32_t now = millis();
+    brightnessDownButton.rawState = brightnessDownButton.stableState =
+        digitalRead(BRIGHTNESS_ENCODER_A_PIN);
+    brightnessUpButton.rawState = brightnessUpButton.stableState =
+        digitalRead(BRIGHTNESS_ENCODER_B_PIN);
+    masterButton.rawState = masterButton.stableState =
+        digitalRead(LED_MASTER_TOGGLE_PIN);
+    brightnessDownButton.lastChangeMs = now;
+    brightnessUpButton.lastChangeMs = now;
+    masterButton.lastChangeMs = now;
 
-    lastButtonReading = digitalRead(LED_MASTER_TOGGLE_PIN);
-    stableButtonState = lastButtonReading;
-    lastDebugButtonReading = lastButtonReading;
-    lastDebugEncoderState = encoderPreviousState;
-    Serial.printf("[RPM CTRL] Inputs ready: A=GPIO%d B=GPIO%d SW=GPIO%d\n",
-                  BRIGHTNESS_ENCODER_A_PIN,
-                  BRIGHTNESS_ENCODER_B_PIN,
-                  LED_MASTER_TOGGLE_PIN);
-    Serial.printf("[RPM CTRL] Initial levels: A=%u B=%u SW=%u\n",
-                  digitalRead(BRIGHTNESS_ENCODER_A_PIN),
-                  digitalRead(BRIGHTNESS_ENCODER_B_PIN),
-                  digitalRead(LED_MASTER_TOGGLE_PIN));
-    lastButtonChangeMs = millis();
+    Serial.printf("[RPM TEST] BUTTON DIAGNOSTIC V1.1.1\\n");
+    Serial.printf("[RPM TEST] GPIO%u=Brightness DOWN, GPIO%u=Brightness UP, GPIO%u=Master ON/OFF\\n",
+                  BRIGHTNESS_ENCODER_A_PIN, BRIGHTNESS_ENCODER_B_PIN, LED_MASTER_TOGGLE_PIN);
+    Serial.printf("[RPM TEST] Initial levels: GPIO%u=%u GPIO%u=%u GPIO%u=%u\\n",
+                  BRIGHTNESS_ENCODER_A_PIN, brightnessDownButton.stableState,
+                  BRIGHTNESS_ENCODER_B_PIN, brightnessUpButton.stableState,
+                  LED_MASTER_TOGGLE_PIN, masterButton.stableState);
+    Serial.println("[RPM TEST] Hold each GPIO to GND for at least 1 second.");
 
     strip.begin();
     strip.setBrightness(LED_BRIGHTNESS);
